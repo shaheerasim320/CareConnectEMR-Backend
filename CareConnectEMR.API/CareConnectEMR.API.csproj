@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CareConnectEMR.Application\CareConnectEMR.Application.csproj" />
+    <ProjectReference Include="..\CareConnectEMR.Infrastructure\CareConnectEMR.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
