@@ -1,4 +1,4 @@
-﻿using CareConnectEMR.Infrastructure.Identity;
+﻿using CareConnectEMR.Domain.Enitites;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;

@@ -1,5 +1,5 @@
 
-using CareConnectEMR.Infrastructure.Identity;
+using CareConnectEMR.Domain.Enitites;
 using CareConnectEMR.Infrastructure.Persistence;
 using CareConnectEMR.Infrastructure.Persistence.Seed;
 using Microsoft.AspNetCore.Identity;

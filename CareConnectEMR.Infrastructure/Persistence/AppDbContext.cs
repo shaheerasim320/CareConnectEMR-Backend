@@ -1,5 +1,4 @@
-﻿using CareConnectEMR.Infrastructure.Identity;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -9,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using CareConnectEMR.Domain.Common;
+using CareConnectEMR.Domain.Enitites;
 
 namespace CareConnectEMR.Infrastructure.Persistence
 {

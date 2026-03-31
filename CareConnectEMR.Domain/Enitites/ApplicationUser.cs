@@ -6,9 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CareConnectEMR.Infrastructure.Identity
+namespace CareConnectEMR.Domain.Enitites
 {
-    public class ApplicationUser : IdentityUser,IAuditable
+    public class ApplicationUser:IdentityUser,IAuditable
     {
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
@@ -21,6 +21,5 @@ namespace CareConnectEMR.Infrastructure.Identity
         public DateTime? LastLoginAt { get; set; }
         public bool IsDeleted { get; set; } = false;
         public string FullName => $"{FirstName} {LastName}";
-
     }
 }
