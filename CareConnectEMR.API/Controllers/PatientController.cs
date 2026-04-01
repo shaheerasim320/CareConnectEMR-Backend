@@ -38,7 +38,7 @@ public class PatientController : ControllerBase
         return StatusCode(result.StatusCode, result);
     }
 
-    [HttpPut("{id:guid}")]
+    [HttpPatch("{id:guid}")]
     public async Task<IActionResult> UpdatePatient(
         Guid id, [FromBody] UpdatePatientRequest request, CancellationToken ct)
     {

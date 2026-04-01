@@ -12,7 +12,7 @@ namespace CareConnectEMR.Infrastructure.Persistence.Seed
     {
         public static async Task SeedAsync(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
         {
-            string[] roles = { "Admin", "Doctor" };
+            string[] roles = { "Admin", "Doctor", "Receptionist" };
 
             foreach (var role in roles)
             {

@@ -21,7 +21,7 @@ namespace CareConnectEMR.Infrastructure.Services
             _context = context;
         }
 
-        public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, CancellationToken ct)
+        public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, CancellationToken ct = default)
         {
             if (parameters.Page < 1) parameters.Page = 1;
 
@@ -66,7 +66,7 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PagedResult<PatientListResponse>>.Ok(pagedData);
         }
 
-        public async Task<Result<PatientResponse>> GetPatientByIdAsync(Guid id, CancellationToken ct)
+        public async Task<Result<PatientResponse>> GetPatientByIdAsync(Guid id, CancellationToken ct = default)
         {
             var patient = await _context.Patients
             .AsNoTracking()
@@ -78,7 +78,7 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
         }
 
-        public async Task<Result<PatientResponse>> CreatePatientAsync(CreatePatientRequest request, CancellationToken ct)
+        public async Task<Result<PatientResponse>> CreatePatientAsync(CreatePatientRequest request, CancellationToken ct = default)
         {
             var nextSequenceValue = await _context.Database
                 .SqlQueryRaw<int>("SELECT NEXT VALUE FOR dbo.PatientNumbers")
@@ -111,30 +111,32 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PatientResponse>.Created(PatientMapper.ToResponse(patient));
         }
 
-        public async Task<Result<PatientResponse>> UpdatePatientAsync(Guid id, UpdatePatientRequest request, CancellationToken ct)
+        public async Task<Result<PatientResponse>> UpdatePatientAsync(Guid id, UpdatePatientRequest request, CancellationToken ct = default)
         {
             var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
-            if (patient == null)
-            {
-                return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
-            }
-            patient.FirstName = request.FirstName.Trim();
-            patient.LastName = request.LastName.Trim();
-            patient.PhoneNumber = request.PhoneNumber;
-            patient.DateOfBirth = request.DateOfBirth;
-            patient.Gender = request.Gender;
-            patient.Email = request.Email;
-            patient.Address = request.Address;
-            patient.BloodType = request.BloodType;
-            patient.Allergies = request.Allergies;
-            patient.EmergencyContactName = request.EmergencyContactName;
-            patient.EmergencyContactNumber = request.EmergencyContactNumber;
+            if (patient == null) return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
+
+            bool isChanged = false;
+
+            if (request.FirstName != null && patient.FirstName != request.FirstName ) { patient.FirstName = request.FirstName.Trim(); isChanged = true; }
+            if (request.LastName != null && patient.LastName != request.LastName) { patient.LastName = request.LastName.Trim(); isChanged = true; }
+            if (request.PhoneNumber != null && patient.PhoneNumber != request.PhoneNumber) { patient.PhoneNumber = request.PhoneNumber; isChanged = true; }
+            if (request.DateOfBirth.HasValue && patient.DateOfBirth != request.DateOfBirth.Value) { patient.DateOfBirth = request.DateOfBirth.Value; isChanged = true; }
+            if (request.Gender != null && patient.Gender != request.Gender) { patient.Gender = request.Gender;isChanged = true; }
+            if (request.Email != null && patient.Email != request.Email) { patient.Email = request.Email; isChanged = true; }
+            if (request.Address != null && patient.Address != request.Address) { patient.Address = request.Address; isChanged = true; }
+            if (request.BloodType != null && patient.BloodType != request.BloodType) { patient.BloodType = request.BloodType; isChanged = true; }
+            if (request.Allergies != null && patient.Allergies != request.Allergies) { patient.Allergies = request.Allergies; isChanged = true; }
+            if (request.EmergencyContactName != null && patient.EmergencyContactName != request.EmergencyContactName) { patient.EmergencyContactName = request.EmergencyContactName; isChanged = true; }
+            if (request.EmergencyContactNumber != null && patient.EmergencyContactNumber != request.EmergencyContactNumber) { patient.EmergencyContactNumber = request.EmergencyContactNumber; isChanged = true; }
+
+            if(!isChanged) return Result<PatientResponse>.Fail("No fields were updated. Please provide at least one field to update.");
 
             await _context.SaveChangesAsync(ct);
             return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
         }
 
-        public async Task<Result<string>> DeletePatientAsync(Guid id, CancellationToken ct)
+        public async Task<Result<string>> DeletePatientAsync(Guid id, CancellationToken ct = default)
         {
             var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
             if (patient == null)

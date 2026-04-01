@@ -13,7 +13,7 @@ namespace CareConnectEMR.Domain.Enitites
         public string MRN { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
-        public DateTime DateOfBirth { get; set; }
+        public DateOnly DateOfBirth { get; set; }
         public string Gender { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public string? Email { get; set; }
@@ -30,8 +30,8 @@ namespace CareConnectEMR.Domain.Enitites
 
         public string FullName => $"{FirstName} {LastName}";
         public int Age =>
-            DateTime.UtcNow.Year - DateOfBirth.Year -
-            (DateTime.UtcNow.Date < DateOfBirth.Date.AddYears(DateTime.UtcNow.Year - DateOfBirth.Year) ? 1 : 0);
+        DateOnly.FromDateTime(DateTime.UtcNow).Year - DateOfBirth.Year -
+        (DateOnly.FromDateTime(DateTime.UtcNow) < DateOfBirth.AddYears(DateOnly.FromDateTime(DateTime.UtcNow).Year - DateOfBirth.Year) ? 1 : 0);
 
     }
 }
