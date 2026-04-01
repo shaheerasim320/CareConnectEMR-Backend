@@ -27,8 +27,11 @@ namespace CareConnectEMR.API
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddHttpContextAccessor();
+
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IPatientService, PatientService>();
+
 
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(
@@ -58,6 +61,23 @@ namespace CareConnectEMR.API
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
                     ClockSkew = TimeSpan.Zero
                 };
+            });
+
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+                options.AddPolicy("RequireDoctorRole", policy => policy.RequireRole("Doctor"));
+                options.AddPolicy("AdminOrDoctor", policy => policy.RequireRole("Admin","Doctor"));
+            });
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAngular",policy=>
+                {
+                    policy.WithOrigins("http://localhost:4200")
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
             });
 
             builder.Services.AddSwaggerGen(options =>

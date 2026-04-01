@@ -19,7 +19,7 @@ namespace CareConnectEMR.Domain.Enitites
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        public bool IsActive { get; set; } = true;
         public string FullName => $"{FirstName} {LastName}";
     }
 }

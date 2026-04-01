@@ -1,4 +1,4 @@
-﻿using CareConnectEMR.Application.DTOs;
+﻿using CareConnectEMR.Application.DTOs.Auth;
 using CareConnectEMR.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -24,11 +24,7 @@ namespace CareConnectEMR.API.Controllers
         public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
         {
             var result = await _authService.LoginAsync(request, ct);
-            if (!result.IsSuccess)
-            {
-                return StatusCode(result.StatusCode, result);
-            }
-            return Ok(result);
+            return StatusCode(result.StatusCode, result);
         }
 
         [HttpPost("refresh-token")]
@@ -36,11 +32,7 @@ namespace CareConnectEMR.API.Controllers
         public async Task<IActionResult> RefreshToken(RefreshTokenRequest request, CancellationToken ct)
         {
             var result = await _authService.RefreshTokenAsync(request, ct);
-            if (!result.IsSuccess)
-            {
-                return StatusCode(result.StatusCode, result);
-            }
-            return Ok(result);
+            return StatusCode(result.StatusCode, result);
         }
 
         [HttpPost("logout")]
@@ -53,11 +45,7 @@ namespace CareConnectEMR.API.Controllers
             if (userId is null) return Unauthorized("User not authenticated");
 
             var result = await _authService.LogoutAsync(userId, ct);
-            if (!result.IsSuccess)
-            {
-                return StatusCode(result.StatusCode, result);
-            }
-            return Ok(result);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

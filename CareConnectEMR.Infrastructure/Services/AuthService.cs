@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CareConnectEMR.Application.DTOs.Auth;
 
 namespace CareConnectEMR.Infrastructure.Services
 {
@@ -26,7 +27,7 @@ namespace CareConnectEMR.Infrastructure.Services
         {
             var user = await _userManager.FindByEmailAsync(request.Identifier) ?? await _userManager.FindByNameAsync(request.Identifier);
 
-            if (user == null || user.IsDeleted)
+            if (user == null || !user.IsActive)
                 return Result<AuthResponse>.Unauthorized();
 
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
