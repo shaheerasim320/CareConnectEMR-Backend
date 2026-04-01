@@ -1,6 +1,6 @@
 ﻿using CareConnectEMR.Application.DTOs;
 using CareConnectEMR.Application.Interfaces;
-using CareConnectEMR.Domain.Common;
+using CareConnectEMR.Application.Common;
 using CareConnectEMR.Domain.Enitites;
 using Microsoft.AspNetCore.Identity;
 using System;
@@ -22,15 +22,12 @@ namespace CareConnectEMR.Infrastructure.Services
             _tokenService = tokenService;
         }
 
-        public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request)
+        public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default)
         {
             var user = await _userManager.FindByEmailAsync(request.Identifier) ?? await _userManager.FindByNameAsync(request.Identifier);
 
-            if (user == null)
+            if (user == null || user.IsDeleted)
                 return Result<AuthResponse>.Unauthorized();
-
-            if (user.IsDeleted)
-                return Result<AuthResponse>.Fail("User account is inactive", 403);
 
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
 
@@ -75,19 +72,24 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<AuthResponse>.Ok(response);
         }
 
-        public async Task<Result<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request)
+        public async Task<Result<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
         {
-            var userId = _tokenService.GetUserIdFromExpiredToken(request.accessToken);
+            var userId = _tokenService.GetUserIdFromExpiredToken(request.AccessToken);
             if (userId == null)
                 return Result<AuthResponse>.Unauthorized("Invalid access token");
+
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null || user.RefreshToken != request.refreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+
+            if (user == null || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
                 return Result<AuthResponse>.Unauthorized("Refresh token expired or invalid");
+
             var roles = await _userManager.GetRolesAsync(user);
             var newAccessToken = _tokenService.GenerateAccessToken(user, roles);
             var newRefreshToken = _tokenService.GenerateRefreshToken();
+
             user.RefreshToken = newRefreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+
             await _userManager.UpdateAsync(user);
 
             return Result<AuthResponse>.Ok(new AuthResponse
@@ -101,13 +103,15 @@ namespace CareConnectEMR.Infrastructure.Services
             });
         }
 
-        public async Task<Result<string>> LogoutAsync(string userId)
+        public async Task<Result<string>> LogoutAsync(string userId, CancellationToken ct = default)
         {
             var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
                 return Result<string>.NotFound("User not found");
+
             user.RefreshToken = null;
             user.RefreshTokenExpiryTime = null;
+
             await _userManager.UpdateAsync(user);
             return Result<string>.Ok("Logged out successfully");
         }

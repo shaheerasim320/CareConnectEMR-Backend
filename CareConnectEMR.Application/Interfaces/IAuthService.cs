@@ -1,5 +1,5 @@
 ﻿using CareConnectEMR.Application.DTOs;
-using CareConnectEMR.Domain.Common;
+using CareConnectEMR.Application.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,8 +10,8 @@ namespace CareConnectEMR.Application.Interfaces
 {
     public interface IAuthService
     {
-        Task<Result<AuthResponse>> LoginAsync(LoginRequest request);
-        Task<Result<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request);
-        Task<Result<string>> LogoutAsync(string userId);
+        Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct);
+        Task<Result<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct);
+        Task<Result<string>> LogoutAsync(string userId, CancellationToken ct);
     }
 }

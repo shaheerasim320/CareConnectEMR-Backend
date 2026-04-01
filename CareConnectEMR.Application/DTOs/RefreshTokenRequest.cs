@@ -8,7 +8,7 @@ namespace CareConnectEMR.Application.DTOs
 {
     public class RefreshTokenRequest
     {
-        public string refreshToken { get; set; } = null!;
-         public string accessToken { get; set; } = null!;
+        public string RefreshToken { get; set; } = null!;
+         public string AccessToken { get; set; } = null!;
     }
 }

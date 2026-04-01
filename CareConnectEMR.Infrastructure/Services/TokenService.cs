@@ -1,14 +1,15 @@
 ﻿using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Domain.Enitites;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace CareConnectEMR.Infrastructure.Services
 {
@@ -25,9 +26,10 @@ namespace CareConnectEMR.Infrastructure.Services
         {
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email!),
-                new Claim(ClaimTypes.Name,user.FullName)
+                new(JwtRegisteredClaimNames.Sub, user.Id),
+                new(JwtRegisteredClaimNames.Email, user.Email!),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new("fullName", user.FullName),
             };
 
             foreach (var role in roles)
@@ -35,14 +37,13 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
 
-            var cred = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(15),
-                signingCredentials: cred
+                expires: DateTime.UtcNow.AddMinutes(15),
+                signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
@@ -50,27 +51,29 @@ namespace CareConnectEMR.Infrastructure.Services
 
         public string GenerateRefreshToken()
         {
-            return Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            var bytes = new byte[64];
+            RandomNumberGenerator.Fill(bytes);
+            return Convert.ToBase64String(bytes);
         }
 
         public string? GetUserIdFromExpiredToken(string token)
         {
             try
             {
-                var principal = new JwtSecurityTokenHandler().ValidateToken(token, new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = false,
-                }, out _);
+                var principal = new JwtSecurityTokenHandler().ValidateToken(token,
+                    new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(
+                            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)),
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = false 
+                    }, out _);
+
                 return principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
             }
-            catch
-            {
-                return null;
-            }
+            catch { return null; }
         }
     }
 }
