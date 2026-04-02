@@ -115,7 +115,7 @@ namespace CareConnectEMR.Infrastructure.Services
         {
             var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
             if (patient == null) return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
-
+            
             bool isChanged = false;
 
             if (request.FirstName != null && patient.FirstName != request.FirstName ) { patient.FirstName = request.FirstName.Trim(); isChanged = true; }

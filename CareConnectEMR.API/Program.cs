@@ -68,7 +68,10 @@ namespace CareConnectEMR.API
             {
                 options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
                 options.AddPolicy("RequireDoctorRole", policy => policy.RequireRole("Doctor"));
+                options.AddPolicy("RequireReceptionistRole", policy => policy.RequireRole("Receptionist"));
+                options.AddPolicy("AdminOrReceptionist", policy => policy.RequireRole("Admin", "Receptionist"));
                 options.AddPolicy("AdminOrDoctor", policy => policy.RequireRole("Admin","Doctor"));
+                options.AddPolicy("AdminOrDoctorOrReceptionist", policy => policy.RequireRole("Admin","Doctor","Receptionist"));
             });
 
             builder.Services.AddCors(options =>

@@ -47,40 +47,45 @@ namespace CareConnectEMR.Infrastructure.Services
 
         }
 
-        
+
         public async Task<Result<PagedResult<UserResponse>>> GetUsersAsync(UserQueryParameters parameters, CancellationToken ct)
         {
             if (parameters.Page < 1) parameters.Page = 1;
 
             var query = _userManager.Users.AsNoTracking();
 
-            if(parameters.IsActive.HasValue) query = query.Where(u => u.IsActive == parameters.IsActive.Value);
+            if (parameters.IsActive.HasValue)
+                query = query.Where(u => u.IsActive == parameters.IsActive.Value);
 
             if (!string.IsNullOrEmpty(parameters.Search))
             {
                 var search = parameters.Search.ToLower().Trim();
-                query = query.Where(u => u.FirstName.ToLower().Contains(search) || u.LastName.ToLower().Contains(search) || u.Email!.ToLower().Contains(search));
+                query = query.Where(u =>
+                    u.FirstName.ToLower().Contains(search) ||
+                    u.LastName.ToLower().Contains(search) ||
+                    u.Email!.ToLower().Contains(search));
             }
 
             var totalItems = await query.CountAsync(ct);
 
             var users = await query
+                .OrderBy(u => u.FirstName)
                 .Skip((parameters.Page - 1) * parameters.PageSize)
                 .Take(parameters.PageSize)
-                .Select(u => new UserResponse
-                {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email!,
-                    UserName = u.UserName!,
-                    Role = _userManager.GetRolesAsync(u).Result.FirstOrDefault() ?? "User",
-                    IsActive = u.IsActive
-                })
                 .ToListAsync(ct);
+
+            var userRoles = new Dictionary<string, string>();
+            foreach (var user in users)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                userRoles[user.Id] = roles.FirstOrDefault() ?? string.Empty;
+            }
+
+            var items = UserMapper.ToListResponse(users, userRoles);
 
             return Result<PagedResult<UserResponse>>.Ok(new PagedResult<UserResponse>
             {
-                Items = users,
+                Items = items,
                 TotalCount = totalItems,
                 Page = parameters.Page,
                 PageSize = parameters.PageSize
@@ -132,10 +137,14 @@ namespace CareConnectEMR.Infrastructure.Services
         public async Task<Result<string>> ResetPasswordAsync(string userId, ResetPasswordRequest request, CancellationToken ct = default)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null) return Result<string>.NotFound($"User with ID {userId} not found.");
+            if (user is null)
+                return Result<string>.NotFound($"User with ID {userId} not found.");
 
-            await _userManager.RemovePasswordAsync(user);
-            await _userManager.AddPasswordAsync(user, request.NewPassword);
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var result = await _userManager.ResetPasswordAsync(user, token, request.NewPassword);
+
+            if (!result.Succeeded)
+                return Result<string>.Fail(result.Errors.First().Description);
 
             return Result<string>.Ok("Password reset successfully");
         }

@@ -7,7 +7,7 @@ namespace CareConnectEMR.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Doctor")]
+[Authorize(Roles = "Admin,Doctor,Receptionist")]
 public class PatientController : ControllerBase
 {
     private readonly IPatientService _patientService;
@@ -31,6 +31,7 @@ public class PatientController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Receptionist")]
     public async Task<IActionResult> CreatePatient(
         [FromBody] CreatePatientRequest request, CancellationToken ct)
     {
@@ -39,6 +40,7 @@ public class PatientController : ControllerBase
     }
 
     [HttpPatch("{id:guid}")]
+    [Authorize(Roles = "Admin,Doctor")]
     public async Task<IActionResult> UpdatePatient(
         Guid id, [FromBody] UpdatePatientRequest request, CancellationToken ct)
     {

@@ -19,6 +19,6 @@ namespace CareConnectEMR.Application.DTOs.Users
             set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
         }
         public string? Search { get; set; }
-        public bool? IsActive { get; set; } = false;
+        public bool? IsActive { get; set; } = true;
     }
 }
