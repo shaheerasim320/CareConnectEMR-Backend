@@ -6,31 +6,65 @@
 ![Database](https://img.shields.io/badge/Database-SQL%20Server-red)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-CareConnect EMR is a **modular Electronic Medical Record (EMR) backend system** built using **ASP.NET Core Web API, Clean Architecture, and JWT authentication**.
+**CareConnect EMR** is a **modular Electronic Medical Record (EMR) backend system** built using **ASP.NET Core Web API, Clean Architecture, and SQL Server**.
 
-The project demonstrates **production-grade backend architecture**, including:
+The project demonstrates **production-grade backend architecture**, including secure authentication, user management, patient management, and scalable API design for healthcare platforms.
 
-* Secure authentication
-* Role-based authorization
-* Refresh token system
-* Audit logging
-* Scalable modular design for healthcare systems
+The system is designed with **enterprise backend engineering practices**, making it easy to extend with additional healthcare modules.
 
+# ✨ Core Features
+
+- JWT Authentication with Refresh Tokens
+- ASP.NET Identity User Management
+- Role-based Authorization
+- Patient Management System
+- Pagination & Filtering APIs
+- Soft Delete Implementation
+- Audit Fields (CreatedAt / UpdatedAt)
+- Clean Architecture (Layered Design)
+- Secure Logout with Refresh Token Invalidation
+- Modular Backend Structure for Scalability
 ---
 
-# ✨ Features
+# 🏥 Implemented Modules
+## 👤 User Management
 
-✔ JWT Authentication
-✔ Refresh Token with Remember Me
-✔ ASP.NET Identity integration
-✔ Role-based Authorization (Admin / Doctor)
-✔ Clean Architecture
-✔ Audit Fields (CreatedBy / UpdatedBy)
-✔ Secure logout (refresh token invalidation)
-✔ Modular structure for future healthcare features
+The system uses **ASP.NET Identity** to manage application users and roles.
 
+Features include:
+
+- User registration with role assignment
+- Secure login using JWT authentication
+- Refresh token generation and rotation
+- Role-based access control
+- Admin-controlled user management
+
+Supported roles:
+```
+Admin
+Receptionist
+Doctor
+```
 ---
 
+## 🧑‍⚕️ Patient Management
+
+The **Patient module** manages patient records within the system.
+
+Features include:
+
+- Patient registration
+- Unique Medical Record Number (MRN) generation
+- Patient search and pagination
+- Partial patient updates
+- Soft delete support
+- Role-based access control
+
+Example MRN format:
+
+```
+MRN-2026-000001
+```
 # 🏗 Architecture
 
 The project follows **Clean Architecture principles**, separating responsibilities into layers.
@@ -63,6 +97,7 @@ The project follows **Clean Architecture principles**, separating responsibiliti
                     │  EF Core            │
                     │  Identity           │
                     │  Token Services     │
+                    │  Database           │
                     └─────────────────────┘
 ```
 
@@ -75,21 +110,39 @@ CareConnectEMR
 │
 ├── CareConnectEMR.API
 │   ├── Controllers
+│   │   ├── AuthController
+│   │   ├── UserController
+│   │   └── PatientController
 │   └── Program.cs
 │
 ├── CareConnectEMR.Application
 │   ├── DTOs
+│   │   ├── Auth
+│   │   ├── User
+│   │   └── Patient
+│   │
 │   ├── Interfaces
-│   └── Common
+│   │   ├── IAuthService
+│   │   ├── IUserService
+│   │   └── IPatientService
+│   │
+│   └── Services
 │
 ├── CareConnectEMR.Domain
 │   ├── Entities
+│   │   └── Patient
+│   │
 │   └── Common
 │
 └── CareConnectEMR.Infrastructure
     ├── Persistence
-    ├── Services
-    └── Seed
+    │   └── ApplicationDbContext
+    │
+    ├── Identity
+    │   └── IdentitySeeder
+    │
+    └── Services
+        └── TokenService
 ```
 
 ---
@@ -158,64 +211,33 @@ User must login again
 
 # 🔑 API Endpoints
 
-### Login
+### Authentication
 
 ```
 POST /api/auth/login
-```
-
-Request
-
-```json
-{
-  "identifier": "admin@careconnect.com",
-  "password": "Admin@123",
-  "rememberMe": true
-}
-```
-
-Response
-
-```json
-{
-  "accessToken": "jwt_token",
-  "refreshToken": "refresh_token",
-  "accessTokenExpiry": "2026-03-30T14:00:00",
-  "userId": "user_id",
-  "fullName": "Evelyn Reed",
-  "role": "Admin"
-}
-```
-
----
-
-### Refresh Token
-
-```
 POST /api/auth/refresh-token
-```
-
-```json
-{
-  "accessToken": "expired_access_token",
-  "refreshToken": "refresh_token"
-}
-```
-
----
-
-### Logout
-
-```
 POST /api/auth/logout
 ```
-
-Header
+---
+### Users
 
 ```
-Authorization: Bearer {access_token}
+POST /api/user
+GET /api/user
+GET /api/user/{id}
+PATCH /api/user/{id}
+DELETE /api/user/{id}
 ```
+---
+### Patients
 
+```
+GET /api/patient
+GET /api/patient/{id}
+POST /api/patient
+PATCH /api/patient/{id}
+DELETE /api/patient/{id}
+```
 ---
 
 # 🗄 Database Setup
@@ -289,7 +311,6 @@ The system will expand into a full **Healthcare Management Platform**.
 
 Planned modules:
 
-* Patient Management
 * Doctor Management
 * Appointment Scheduling
 * Medical Records
