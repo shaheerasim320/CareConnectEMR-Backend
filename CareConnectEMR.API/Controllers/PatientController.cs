@@ -15,7 +15,7 @@ public class PatientController : ControllerBase
     public PatientController(IPatientService patientService)
         => _patientService = patientService;
 
-    [HttpGet]
+    [HttpGet("list")]
     public async Task<IActionResult> GetPatients(
         [FromQuery] PatientQueryParameters parameters, CancellationToken ct)
     {
@@ -23,14 +23,14 @@ public class PatientController : ControllerBase
         return StatusCode(result.StatusCode, result);
     }
 
-    [HttpGet("{id:guid}")]
+    [HttpGet("view/{id:guid}")]
     public async Task<IActionResult> GetPatientById(Guid id, CancellationToken ct)
     {
         var result = await _patientService.GetPatientByIdAsync(id, ct);
         return StatusCode(result.StatusCode, result);
     }
 
-    [HttpPost]
+    [HttpPost("register")]
     [Authorize(Roles = "Admin,Receptionist")]
     public async Task<IActionResult> CreatePatient(
         [FromBody] CreatePatientRequest request, CancellationToken ct)
@@ -39,7 +39,7 @@ public class PatientController : ControllerBase
         return StatusCode(result.StatusCode, result);
     }
 
-    [HttpPatch("{id:guid}")]
+    [HttpPatch("update/{id:guid}")]
     [Authorize(Roles = "Admin,Doctor")]
     public async Task<IActionResult> UpdatePatient(
         Guid id, [FromBody] UpdatePatientRequest request, CancellationToken ct)
@@ -48,7 +48,7 @@ public class PatientController : ControllerBase
         return StatusCode(result.StatusCode, result);
     }
 
-    [HttpDelete("{id:guid}")]
+    [HttpDelete("delete/{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeletePatient(Guid id, CancellationToken ct)
     {

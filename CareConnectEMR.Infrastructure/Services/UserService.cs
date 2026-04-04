@@ -1,5 +1,5 @@
 ﻿using CareConnectEMR.Application.Common;
-using CareConnectEMR.Application.DTOs.Users;
+using CareConnectEMR.Application.DTOs.User;
 using CareConnectEMR.Application.Features.User;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Domain.Enitites;

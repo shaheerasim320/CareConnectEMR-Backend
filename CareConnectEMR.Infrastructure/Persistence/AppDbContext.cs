@@ -21,6 +21,8 @@ namespace CareConnectEMR.Infrastructure.Persistence
 
         public DbSet<Patient> Patients { get; set; }
 
+        public DbSet<Appointment> Appointments { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -106,6 +108,58 @@ namespace CareConnectEMR.Infrastructure.Persistence
 
                 entity.Ignore(p=>p.FullName);
                 entity.Ignore(p => p.Age);
+            });
+
+            builder.Entity<Appointment>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+
+                entity.Property(a => a.PatientId)
+                .IsRequired();
+
+                entity.Property(a => a.DoctorId)
+                .IsRequired();
+
+                entity.Property(a => a.StartTime)
+                .IsRequired();
+
+                entity.Property(a => a.EndTime)
+                .IsRequired();
+
+                entity.Property(a => a.Status)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue(AppointmentStatus.Scheduled);
+
+                entity.Property(a => a.Reason)
+                .HasMaxLength(500);
+
+                entity.Property(a => a.Notes)
+                .HasMaxLength(2000);
+
+                entity.Property(a => a.CancellationReason)
+                .HasMaxLength(500);
+
+                entity.Ignore(a => a.DurationMinutes);
+
+                entity.HasIndex(a => new { a.DoctorId, a.StartTime, a.EndTime })
+                .HasDatabaseName("IDX_Appointment_Doctor_TimeRange");
+
+                entity.HasIndex(a => a.PatientId)
+                .HasDatabaseName("IDX_Appointment_PatientId");
+
+                entity.HasIndex(a=>a.Status)
+                .HasDatabaseName("IDX_Appointment_Status");
+
+                entity.HasOne(a => a.Patient)
+                .WithMany()
+                .HasForeignKey(a => a.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(a => a.Doctor)
+                .WithMany()
+                .HasForeignKey(a => a.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
             });
         }
 

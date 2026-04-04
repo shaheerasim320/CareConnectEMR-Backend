@@ -1,4 +1,4 @@
-﻿using CareConnectEMR.Application.DTOs.Users;
+﻿using CareConnectEMR.Application.DTOs.User;
 using CareConnectEMR.Domain.Enitites;
 using System;
 using System.Collections.Generic;

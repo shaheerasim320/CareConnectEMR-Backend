@@ -1,5 +1,5 @@
 ﻿using CareConnectEMR.Application.Common;
-using CareConnectEMR.Application.DTOs.Users;
+using CareConnectEMR.Application.DTOs.User;
 using System;
 using System.Collections.Generic;
 using System.Linq;

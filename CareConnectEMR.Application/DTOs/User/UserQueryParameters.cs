@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace CareConnectEMR.Application.DTOs.Users
+namespace CareConnectEMR.Application.DTOs.User
 {
     public class UserQueryParameters
     {

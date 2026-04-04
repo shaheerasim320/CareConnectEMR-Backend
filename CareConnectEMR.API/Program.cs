@@ -32,6 +32,7 @@ namespace CareConnectEMR.API
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IPatientService, PatientService>();
             builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 
 
             builder.Services.AddDbContext<AppDbContext>(options =>
