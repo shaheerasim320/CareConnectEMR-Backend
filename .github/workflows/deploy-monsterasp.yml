@@ -1,0 +1,59 @@
+name: deploy-monsterasp
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore .\CareConnectEMR.sln
+
+      - name: Publish API
+        run: dotnet publish .\CareConnectEMR.API\CareConnectEMR.API.csproj -c Release -o .\publish /p:UseAppHost=false --no-restore
+
+      - name: Generate production appsettings
+        shell: pwsh
+        run: |
+          $config = @{
+            ConnectionStrings = @{
+              DefaultConnection = "${{ secrets.APP_DEFAULT_CONNECTION }}"
+            }
+            Jwt = @{
+              Key = "${{ secrets.APP_JWT_KEY }}"
+              Issuer = "${{ secrets.APP_JWT_ISSUER }}"
+              Audience = "${{ secrets.APP_JWT_AUDIENCE }}"
+            }
+            Logging = @{
+              LogLevel = @{
+                Default = "Information"
+                Microsoft.AspNetCore = "Warning"
+              }
+            }
+          }
+
+          $config | ConvertTo-Json -Depth 10 | Set-Content -Path .\publish\appsettings.Production.json
+
+      - name: Deploy via WebDeploy
+        uses: rasmusbuchholdt/simply-web-deploy@2.2.0
+        with:
+          website-name: ${{ secrets.MONSTERASP_WEBSITE_NAME }}
+          server-computer-name: ${{ secrets.MONSTERASP_SERVER_COMPUTER_NAME }}
+          server-username: ${{ secrets.MONSTERASP_SERVER_USERNAME }}
+          server-password: ${{ secrets.MONSTERASP_SERVER_PASSWORD }}
+          source-path: .\publish\
+          target-delete: true

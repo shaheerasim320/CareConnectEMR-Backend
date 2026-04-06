@@ -1,0 +1,21 @@
+services:
+  api:
+    container_name: careconnect-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_CONFIGURATION: Release
+    env_file:
+      - .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      HttpsRedirection__Enabled: "false"
+      ConnectionStrings__DefaultConnection: ${DEFAULT_CONNECTION}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER:-CareConnectEMR}
+      Jwt__Audience: ${JWT_AUDIENCE:-CareConnectEMR-Angular-Client}
+    ports:
+      - "${API_HTTP_PORT:-8080}:8080"
+    restart: unless-stopped

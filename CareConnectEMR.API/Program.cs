@@ -11,6 +11,7 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Infrastructure.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace CareConnectEMR.API
 {
@@ -19,6 +20,15 @@ namespace CareConnectEMR.API
         public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException(
+                    "Connection string 'DefaultConnection' is not configured. Set ConnectionStrings__DefaultConnection."
+                );
+            var jwtKey = builder.Configuration["Jwt:Key"]
+                ?? throw new InvalidOperationException(
+                    "JWT key is not configured. Set Jwt__Key."
+                );
+            var enableHttpsRedirection = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
 
             // Add services to the container.
 
@@ -27,6 +37,12 @@ namespace CareConnectEMR.API
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
             builder.Services.AddHttpContextAccessor();
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
 
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
@@ -38,7 +54,8 @@ namespace CareConnectEMR.API
 
             builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(
-                    builder.Configuration.GetConnectionString("DefaultConnection")
+                    connectionString,
+                    sqlOptions => sqlOptions.EnableRetryOnFailure()
                 )
             );
 
@@ -61,7 +78,7 @@ namespace CareConnectEMR.API
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = builder.Configuration["Jwt:Issuer"],
                     ValidAudience = builder.Configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
                     ClockSkew = TimeSpan.Zero
                 };
             });
@@ -133,7 +150,12 @@ namespace CareConnectEMR.API
                     app.UseSwaggerUI();
                 }
 
-            app.UseHttpsRedirection();
+            app.UseForwardedHeaders();
+
+            if (enableHttpsRedirection)
+            {
+                app.UseHttpsRedirection();
+            }
 
             app.UseAuthentication();
 

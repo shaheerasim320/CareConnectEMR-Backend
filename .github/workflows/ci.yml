@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore ./CareConnectEMR.sln
+
+      - name: Build
+        run: dotnet build ./CareConnectEMR.sln --configuration Release --no-restore
+
+      - name: Test
+        shell: bash
+        run: |
+          if find . -name '*Tests.csproj' -o -name '*.Tests.csproj' | grep -q .; then
+            dotnet test ./CareConnectEMR.sln --configuration Release --no-build
+          else
+            echo "No test projects found. Skipping dotnet test."
+          fi
+
+      - name: Verify Docker build
+        run: docker build -t careconnect-api:ci .
