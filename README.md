@@ -306,6 +306,17 @@ Role:     Admin
 
 ---
 
+### Optional Swagger protection secrets
+
+If you set both of these secrets, the deployed site will expose Swagger and protect it with HTTP Basic Auth. If you do not set them, Swagger stays disabled in production.
+
+```text
+APP_SWAGGER_USERNAME
+APP_SWAGGER_PASSWORD
+```
+
+---
+
 ## Author
 
 **Shaheer Asim**  

@@ -12,6 +12,7 @@ using Microsoft.OpenApi.Models;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Infrastructure.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using System.Security.Cryptography;
 
 namespace CareConnectEMR.API
 {
@@ -29,6 +30,11 @@ namespace CareConnectEMR.API
                     "JWT key is not configured. Set Jwt__Key."
                 );
             var enableHttpsRedirection = builder.Configuration.GetValue("HttpsRedirection:Enabled", true);
+            var enableSwagger = builder.Environment.IsDevelopment()
+                || builder.Configuration.GetValue("Swagger:Enabled", false);
+            var requireSwaggerAuth = builder.Configuration.GetValue("Swagger:RequireAuth", false);
+            var swaggerUsername = builder.Configuration["Swagger:Username"];
+            var swaggerPassword = builder.Configuration["Swagger:Password"];
 
             // Add services to the container.
 
@@ -144,8 +150,73 @@ namespace CareConnectEMR.API
             }
 
                 // Configure the HTTP request pipeline.
-                if (app.Environment.IsDevelopment())
+                if (enableSwagger)
                 {
+                    if (requireSwaggerAuth)
+                    {
+                        app.Use(async (context, next) =>
+                        {
+                            if (context.Request.Path.StartsWithSegments("/swagger"))
+                            {
+                                if (
+                                    string.IsNullOrWhiteSpace(swaggerUsername)
+                                    || string.IsNullOrWhiteSpace(swaggerPassword)
+                                )
+                                {
+                                    throw new InvalidOperationException(
+                                        "Swagger authentication is enabled but Swagger:Username or Swagger:Password is missing."
+                                    );
+                                }
+
+                                var authorizationHeader = context.Request.Headers.Authorization.ToString();
+                                if (
+                                    !authorizationHeader.StartsWith(
+                                        "Basic ",
+                                        StringComparison.OrdinalIgnoreCase
+                                    )
+                                )
+                                {
+                                    ChallengeSwagger(context);
+                                    return;
+                                }
+
+                                try
+                                {
+                                    var encodedCredentials = authorizationHeader["Basic ".Length..].Trim();
+                                    var decodedCredentials = Encoding.UTF8.GetString(
+                                        Convert.FromBase64String(encodedCredentials)
+                                    );
+                                    var separatorIndex = decodedCredentials.IndexOf(':');
+
+                                    if (separatorIndex < 0)
+                                    {
+                                        ChallengeSwagger(context);
+                                        return;
+                                    }
+
+                                    var providedUsername = decodedCredentials[..separatorIndex];
+                                    var providedPassword = decodedCredentials[(separatorIndex + 1)..];
+
+                                    if (
+                                        !AreEqual(providedUsername, swaggerUsername)
+                                        || !AreEqual(providedPassword, swaggerPassword)
+                                    )
+                                    {
+                                        ChallengeSwagger(context);
+                                        return;
+                                    }
+                                }
+                                catch
+                                {
+                                    ChallengeSwagger(context);
+                                    return;
+                                }
+                            }
+
+                            await next();
+                        });
+                    }
+
                     app.UseSwagger();
                     app.UseSwaggerUI();
                 }
@@ -164,6 +235,19 @@ namespace CareConnectEMR.API
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static void ChallengeSwagger(HttpContext context)
+        {
+            context.Response.Headers.Append("WWW-Authenticate", "Basic realm=\"Swagger\"");
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        }
+
+        private static bool AreEqual(string provided, string expected)
+        {
+            var providedBytes = Encoding.UTF8.GetBytes(provided);
+            var expectedBytes = Encoding.UTF8.GetBytes(expected);
+            return CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes);
         }
     }
 }

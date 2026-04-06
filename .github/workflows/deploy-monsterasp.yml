@@ -29,6 +29,10 @@ jobs:
       - name: Generate production appsettings
         shell: pwsh
         run: |
+          $swaggerUsername = "${{ secrets.APP_SWAGGER_USERNAME }}"
+          $swaggerPassword = "${{ secrets.APP_SWAGGER_PASSWORD }}"
+          $swaggerAuthEnabled = -not [string]::IsNullOrWhiteSpace($swaggerUsername) -and -not [string]::IsNullOrWhiteSpace($swaggerPassword)
+
           $config = @{
             ConnectionStrings = @{
               DefaultConnection = "${{ secrets.APP_DEFAULT_CONNECTION }}"
@@ -44,9 +48,19 @@ jobs:
                 "Microsoft.AspNetCore" = "Warning"
               }
             }
+            Swagger = @{
+              Enabled = $swaggerAuthEnabled
+              RequireAuth = $swaggerAuthEnabled
+              Username = $swaggerUsername
+              Password = $swaggerPassword
+            }
           }
 
           $config | ConvertTo-Json -Depth 10 | Set-Content -Path .\publish\appsettings.Production.json -Encoding utf8
+
+      - name: Verify publish output
+        shell: pwsh
+        run: Get-ChildItem .\publish
 
       - name: Deploy via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.2.0
@@ -55,5 +69,5 @@ jobs:
           server-computer-name: ${{ secrets.MONSTERASP_SERVER_COMPUTER_NAME }}
           server-username: ${{ secrets.MONSTERASP_SERVER_USERNAME }}
           server-password: ${{ secrets.MONSTERASP_SERVER_PASSWORD }}
-          source-path: .\publish\
+          source-path: \publish\
           target-delete: true
