@@ -41,12 +41,12 @@ jobs:
             Logging = @{
               LogLevel = @{
                 Default = "Information"
-                Microsoft.AspNetCore = "Warning"
+                "Microsoft.AspNetCore" = "Warning"
               }
             }
           }
 
-          $config | ConvertTo-Json -Depth 10 | Set-Content -Path .\publish\appsettings.Production.json
+          $config | ConvertTo-Json -Depth 10 | Set-Content -Path .\publish\appsettings.Production.json -Encoding utf8
 
       - name: Deploy via WebDeploy
         uses: rasmusbuchholdt/simply-web-deploy@2.2.0
