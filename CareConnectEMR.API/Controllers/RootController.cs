@@ -3,9 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CareConnectEMR.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("/")]
     [ApiController]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public class RootController : ControllerBase
     {
+        [HttpGet]
+        public IActionResult Index()
+        {
+            return Redirect("/health");
+        }
     }
 }
