@@ -1,6 +1,6 @@
 # CareConnect EMR — Backend API
 
-![CI](https://github.com/shaheerasim320/CareConnectEMR/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/shaheerasim320/CareConnectEMR-Backend/actions/workflows/ci.yml)
 ![Deploy](https://github.com/shaheerasim320/CareConnectEMR/actions/workflows/deploy-monsterasp.yml/badge.svg)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean-blue)
@@ -310,4 +310,4 @@ Role:     Admin
 
 **Shaheer Asim**  
 Software Engineer — .NET · Angular · SQL Server  
-[GitHub](https://github.com/YOUR_USERNAME) · [LinkedIn](https://linkedin.com/in/YOUR_PROFILE)
+[GitHub](https://github.com/shaheerasim320) · [LinkedIn](https://linkedin.com/in/shaheer-asim-4b08a2367)
