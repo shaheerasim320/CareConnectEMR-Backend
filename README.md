@@ -16,8 +16,8 @@
 
 | Resource | URL |
 |----------|-----|
-| API (Swagger) | `https://your-domain.monsterasp.net/swagger` |
-| Health Check | `https://your-domain.monsterasp.net/health` |
+| API (Swagger) | `http://careconnectemr-backend.runasp.net/swagger` |
+| Health Check | `http://careconnectemr-backend.runasp.net/health` |
 
 ---
 

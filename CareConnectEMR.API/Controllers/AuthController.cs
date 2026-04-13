@@ -47,5 +47,17 @@ namespace CareConnectEMR.API.Controllers
             var result = await _authService.LogoutAsync(userId, ct);
             return StatusCode(result.StatusCode, result);
         }
+
+        [HttpPost("me")]
+        [Authorize]
+        public async Task<IActionResult> GetMe(CancellationToken ct)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var result = await _authService.GetCurrentUserAsync(userId, ct);
+            return StatusCode(result.StatusCode, result);
+        }
     }
 }

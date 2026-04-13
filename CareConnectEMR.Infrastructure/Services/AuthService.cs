@@ -35,8 +35,6 @@ namespace CareConnectEMR.Infrastructure.Services
             if (!isPasswordValid)
                 return Result<AuthResponse>.Unauthorized();
 
-            user.LastLoginAt = DateTime.UtcNow;
-
             var roles = await _userManager.GetRolesAsync(user);
 
             var accessToken = _tokenService.GenerateAccessToken(user, roles);
@@ -115,6 +113,22 @@ namespace CareConnectEMR.Infrastructure.Services
 
             await _userManager.UpdateAsync(user);
             return Result<string>.Ok("Logged out successfully");
+        }
+
+        public async Task<Result<UserDetailRequest>> GetCurrentUserAsync(string userId, CancellationToken ct = default)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return Result<UserDetailRequest>.NotFound("User not found");
+            var roles = await _userManager.GetRolesAsync(user);
+            var userDetail = new UserDetailRequest
+            {
+                Id = user.Id,
+                FullName = user.FullName,
+                Email = user.Email!,
+                Role = roles.FirstOrDefault() ?? string.Empty
+            };
+            return Result<UserDetailRequest>.Ok(userDetail);
         }
     }
 }
