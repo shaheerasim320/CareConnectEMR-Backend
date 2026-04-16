@@ -48,7 +48,7 @@ namespace CareConnectEMR.API.Controllers
             return StatusCode(result.StatusCode, result);
         }
 
-        [HttpPost("me")]
+        [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMe(CancellationToken ct)
         {

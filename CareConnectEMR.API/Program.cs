@@ -141,6 +141,15 @@ namespace CareConnectEMR.API
 
             var app = builder.Build();
 
+            app.UseForwardedHeaders();
+
+            app.UseCors("AllowAngular");
+
+            if (enableHttpsRedirection)
+            {
+                app.UseHttpsRedirection();
+            }
+
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
