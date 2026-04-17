@@ -23,6 +23,8 @@ namespace CareConnectEMR.Infrastructure.Persistence
 
         public DbSet<Appointment> Appointments { get; set; }
 
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -33,8 +35,6 @@ namespace CareConnectEMR.Infrastructure.Persistence
 
             builder.Entity<ApplicationUser>(entity =>
             {
-                entity.HasIndex(u => u.RefreshToken)
-                .HasDatabaseName("IDX_RefreshToken");
 
                 entity.Property(u => u.FirstName)
                 .IsRequired()
@@ -160,6 +160,35 @@ namespace CareConnectEMR.Infrastructure.Persistence
                 .WithMany()
                 .HasForeignKey(a => a.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(rt => rt.Id);
+
+                entity.Property(rt => rt.UserId)
+                .IsRequired();
+
+                entity.Property(rt => rt.TokenHash)
+                .IsRequired()
+                .HasMaxLength(500);
+
+                entity.Property(rt => rt.ExpiresAt)
+                .IsRequired();
+
+                entity.Property(rt => rt.DeviceInfo)
+                .HasMaxLength(200);
+
+                entity.Property(rt => rt.IpAddress)
+                .HasMaxLength(100);
+
+                entity.HasIndex(rt => rt.UserId)
+                .HasDatabaseName("IDX_RefreshToken_UserId");
+
+                entity.HasOne(rt => rt.User)
+                .WithMany()
+                .HasForeignKey(rt => rt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
             });
         }
 

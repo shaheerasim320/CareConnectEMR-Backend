@@ -1,7 +1,5 @@
 # CareConnect EMR — Backend API
 
-![CI](https://github.com/shaheerasim320/CareConnectEMR-Backend/actions/workflows/ci.yml)
-![Deploy](https://github.com/shaheerasim320/CareConnectEMR/actions/workflows/deploy-monsterasp.yml/badge.svg)
 ![.NET](https://img.shields.io/badge/.NET-8.0-purple)
 ![Architecture](https://img.shields.io/badge/Architecture-Clean-blue)
 ![Auth](https://img.shields.io/badge/Auth-JWT%20%2B%20Refresh%20Token-green)
@@ -21,9 +19,9 @@
 
 ---
 
-## Features
+# Features
 
-- JWT authentication with refresh token rotation
+- JWT authentication with **refresh token rotation**
 - Role-based authorization — Admin, Doctor, Receptionist
 - Patient management with auto-generated MRN (SQL Sequence)
 - Appointment scheduling with state machine and double-booking prevention
@@ -39,39 +37,110 @@
 
 ---
 
-## Modules
+## Authentication System
+
+The API uses **JWT Access Tokens with Refresh Token Rotation** for secure session management.
+
+### Access Token
+
+- Short lived
+- Contains user identity and role claims
+- Signed using `HMAC SHA256`
+- Expiration: **15 minutes**
+
+Access tokens are **not stored in the database**.
+
+They are verified via signature and expiration.
+
+### Refresh Token
+
+- Long lived token
+- Stored **hashed in the database**
+- Used to generate new access tokens
+- Rotated on every refresh request
+- Expiration: **7 days**
+
+Refresh tokens enable **silent re-authentication** without forcing the user to log in again.
+
+---
+
+# Refresh Token Security
+
+The refresh token system follows **industry best practices used in modern APIs**.
+
+Key security features:
+
+- Refresh tokens are **hashed using SHA256 before storage**
+- Raw refresh tokens are **never stored in the database**
+- **Token rotation** is enforced
+- Old refresh tokens are **revoked when used**
+- Token reuse can be detected through the **token chain**
+
+## Database Table
+
+| Column | Description |
+|------|------|
+| Id | Primary key |
+| UserId | Owner of token |
+| TokenHash | SHA256 hash of refresh token |
+| ExpiresAt | Expiration timestamp |
+| Revoked | Whether token has been invalidated |
+| ReplacedByTokenId | Next token in rotation chain |
+
+## Example lifecycle: 
+```
+ Login
+   │
+   ▼
+AccessToken1 + RefreshToken1
+   │
+   ▼
+Refresh request
+   │
+   ▼
+RefreshToken1 → revoked
+RefreshToken2 → created
+   │
+   ▼
+New AccessToken issued
+```
+This ensures a stolen refresh token **cannot be reused after rotation**.
+
+
+
+# Modules
 
 ### Auth
 JWT login supporting email or username. Refresh token rotation with `RememberMe` support. Server-side logout invalidates the refresh token immediately.
 
 ```
-POST   /api/auth/login
-POST   /api/auth/refresh-token
-POST   /api/auth/logout
-GET    /api/auth/me
+POST   /api/Auth/login
+POST   /api/Auth/refresh-token
+POST   /api/Auth/logout
+GET    /api/Auth/me
 ```
 
 ### Users
 Admin-only user management via ASP.NET Identity. Role assignment, partial updates, password reset through Identity pipeline.
 
 ```
-POST   /api/user/register
-GET    /api/user/list
-GET    /api/user/view/{id}
-PATCH  /api/user/update/{id}
-POST   /api/user/reset-password/{id}
-DELETE /api/user/delete/{id}
+POST   /api/User/register
+GET    /api/User/list
+GET    /api/User/view/{id}
+PATCH  /api/User/update/{id}
+POST   /api/User/reset-password/{id}
+DELETE /api/User/delete/{id}
 ```
 
 ### Patients
 Full patient lifecycle — registration, search, soft delete. MRN generated via SQL Sequence (race-condition safe). Doctors restricted to updating patients assigned to them via appointments.
 
 ```
-GET    /api/patient/list
-GET    /api/patient/view/{id}
-POST   /api/patient/register
-PATCH    /api/patient/update/{id}
-DELETE /api/patient/delete/{id}
+GET    /api/Patient/list
+GET    /api/Patient/view/{id}
+POST   /api/Patient/register
+PATCH    /api/Patient/update/{id}
+DELETE /api/Patient/delete/{id}
 ```
 
 MRN format: `MRN-2026-000001`
@@ -80,12 +149,12 @@ MRN format: `MRN-2026-000001`
 Booking with `StartTime` / `EndTime` (not duration). State machine enforces valid transitions. Double-booking prevention via interval overlap check. Soft-deleted patients cannot be booked.
 
 ```
-GET    /api/appointment/list
-GET    /api/appointment/view/{id}
-POST   /api/appointment/register
-PUT    /api/appointment/update/{id}
-PATCH  /api/appointment/status/{id}
-DELETE /api/appointment/cancel/{id}
+GET    /api/Appointment/list
+GET    /api/Appointment/view/{id}
+POST   /api/Appointment/register
+PUT    /api/Appointment/update/{id}
+PATCH  /api/Appointment/status/{id}
+DELETE /api/Appointment/cancel/{id}
 ```
 
 Status flow:
@@ -100,7 +169,7 @@ CheckedIn → NoShow
 Single endpoint — returns role-specific response from JWT claim. Stats include count + trend vs previous period. Chart data (GROUP BY status, 7-day time series) ready for Chart.js.
 
 ```
-GET    /api/dashboard/summary
+GET    /api/Dashboard/summary
 ```
 
 | Role | Gets |
@@ -128,7 +197,7 @@ GET    /api/dashboard/summary
 
 ---
 
-## Architecture
+# Architecture
 
 ```
 CareConnectEMR
@@ -145,7 +214,7 @@ API → Application → Domain
 Infrastructure → Application → Domain
 ```
 
-### Key patterns used
+## Key patterns used
 
 - **Result\<T\>** — all service methods return `Result<T>` instead of throwing exceptions for expected failures
 - **IAuditable** — `CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy` auto-populated in `SaveChangesAsync`

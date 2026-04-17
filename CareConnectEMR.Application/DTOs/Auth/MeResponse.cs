@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace CareConnectEMR.Application.DTOs.Auth
 {
-    public class UserDetailRequest
+    public class MeResponse
     {
         public string Id { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;        
     }

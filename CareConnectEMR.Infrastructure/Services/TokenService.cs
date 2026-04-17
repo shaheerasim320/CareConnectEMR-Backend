@@ -26,10 +26,10 @@ namespace CareConnectEMR.Infrastructure.Services
         {
             var claims = new List<Claim>
             {
-                new(JwtRegisteredClaimNames.Sub, user.Id),
-                new(JwtRegisteredClaimNames.Email, user.Email!),
-                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new("fullName", user.FullName),
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Email, user.Email!),
+                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
             foreach (var role in roles)
@@ -56,24 +56,13 @@ namespace CareConnectEMR.Infrastructure.Services
             return Convert.ToBase64String(bytes);
         }
 
-        public string? GetUserIdFromExpiredToken(string token)
+        public string HashToken(string token)
         {
-            try
-            {
-                var principal = new JwtSecurityTokenHandler().ValidateToken(token,
-                    new TokenValidationParameters
-                    {
-                        ValidateIssuerSigningKey = true,
-                        IssuerSigningKey = new SymmetricSecurityKey(
-                            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)),
-                        ValidateIssuer = false,
-                        ValidateAudience = false,
-                        ValidateLifetime = false 
-                    }, out _);
+            using var sha = SHA256.Create();
 
-                return principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            }
-            catch { return null; }
+            var hash = sha.ComputeHash(Encoding.UTF8.GetBytes(token));
+
+            return Convert.ToBase64String(hash);
         }
     }
 }

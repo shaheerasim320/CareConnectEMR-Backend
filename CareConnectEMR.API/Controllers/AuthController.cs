@@ -24,14 +24,49 @@ namespace CareConnectEMR.API.Controllers
         public async Task<IActionResult> Login(LoginRequest request, CancellationToken ct)
         {
             var result = await _authService.LoginAsync(request, ct);
+
+            if (result.IsSuccess)
+            {
+                if (!string.IsNullOrEmpty(result.Data!.RefreshToken))
+                {
+                    Response.Cookies.Append("refreshToken", result.Data.RefreshToken, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.None,
+                        Expires = DateTime.UtcNow.AddDays(7)
+                    });
+                }
+            }
+
             return StatusCode(result.StatusCode, result);
         }
 
         [HttpPost("refresh-token")]
         [AllowAnonymous]
-        public async Task<IActionResult> RefreshToken(RefreshTokenRequest request, CancellationToken ct)
+        public async Task<IActionResult> RefreshToken(CancellationToken ct)
         {
+            var oldToken = Request.Cookies["refreshToken"];
+
+            if (string.IsNullOrEmpty(oldToken)) return Unauthorized();
+
+            var request = new RefreshTokenRequest { RefreshToken = oldToken };
+
             var result = await _authService.RefreshTokenAsync(request, ct);
+
+            if(result.IsSuccess)
+            {
+                if (!string.IsNullOrEmpty(result.Data!.RefreshToken))
+                {
+                    Response.Cookies.Append("refreshToken", result.Data.RefreshToken, new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.None,
+                        Expires = DateTime.UtcNow.AddDays(7)
+                    });
+                }
+            }
             return StatusCode(result.StatusCode, result);
         }
 
@@ -39,24 +74,23 @@ namespace CareConnectEMR.API.Controllers
         [Authorize]
         public async Task<IActionResult> Logout(CancellationToken ct)
         {
-            var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-                     ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var refreshToken = Request.Cookies["refreshToken"];
 
-            if (userId is null) return Unauthorized("User not authenticated");
-
-            var result = await _authService.LogoutAsync(userId, ct);
-            return StatusCode(result.StatusCode, result);
+            var result = await _authService.LogoutAsync(refreshToken, ct);
+             Response.Cookies.Delete("refreshToken");
+             return StatusCode(result.StatusCode, result);
         }
 
         [HttpGet("me")]
         [Authorize]
         public async Task<IActionResult> GetMe(CancellationToken ct)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            if (userId == null)
+                return Unauthorized();
 
-            var result = await _authService.GetCurrentUserAsync(userId, ct);
+            var result = await _authService.GetMeAsync(userId, ct);
             return StatusCode(result.StatusCode, result);
         }
     }

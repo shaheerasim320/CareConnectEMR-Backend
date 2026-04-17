@@ -1,14 +1,17 @@
-﻿using CareConnectEMR.Application.DTOs;
+﻿using CareConnectEMR.Application.Common;
+using CareConnectEMR.Application.DTOs;
+using CareConnectEMR.Application.DTOs.Auth;
 using CareConnectEMR.Application.Interfaces;
-using CareConnectEMR.Application.Common;
 using CareConnectEMR.Domain.Enitites;
+using CareConnectEMR.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using CareConnectEMR.Application.DTOs.Auth;
 
 namespace CareConnectEMR.Infrastructure.Services
 {
@@ -16,11 +19,16 @@ namespace CareConnectEMR.Infrastructure.Services
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITokenService _tokenService;
+        private readonly AppDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public AuthService(UserManager<ApplicationUser> userManager, ITokenService tokenService)
+        public AuthService(UserManager<ApplicationUser> userManager, ITokenService tokenService, AppDbContext context, IHttpContextAccessor httpContextAccessor)
         {
             _userManager = userManager;
             _tokenService = tokenService;
+            _context = context;
+            _httpContextAccessor = httpContextAccessor;
+
         }
 
         public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct = default)
@@ -39,24 +47,21 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var accessToken = _tokenService.GenerateAccessToken(user, roles);
             string? refreshToken = null;
+            string? refreshTokenHash = null;
 
             if (request.RememberMe)
             {
                 refreshToken = _tokenService.GenerateRefreshToken();
-                user.RefreshToken = refreshToken;
-                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                refreshTokenHash = _tokenService.HashToken(refreshToken);
             }
 
             user.LastLoginAt = DateTime.UtcNow;
 
             await _userManager.UpdateAsync(user);
 
-            AuthResponse response;
-
-            response = new AuthResponse
+            AuthResponse response = new()
             {
                 AccessToken = accessToken,
-                AccessTokenExpiry = DateTime.UtcNow.AddMinutes(15),
                 UserId = user.Id,
                 FullName = user.FullName,
                 Role = roles.FirstOrDefault() ?? string.Empty
@@ -65,7 +70,17 @@ namespace CareConnectEMR.Infrastructure.Services
 
             if (request.RememberMe)
             {
-                response.RefreshToken = refreshToken!;
+                var entity = new RefreshToken
+                {
+                    UserId = user.Id,
+                    TokenHash = refreshTokenHash!,
+                    ExpiresAt = DateTime.UtcNow.AddDays(7),
+                    IpAddress = GetIpAddress(), 
+                    DeviceInfo = GetDeviceInfo()
+                };
+                _context.RefreshTokens.Add(entity);
+                await _context.SaveChangesAsync(ct);
+                response.RefreshToken = refreshToken;
             }
 
             return Result<AuthResponse>.Ok(response);
@@ -73,62 +88,98 @@ namespace CareConnectEMR.Infrastructure.Services
 
         public async Task<Result<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct = default)
         {
-            var userId = _tokenService.GetUserIdFromExpiredToken(request.AccessToken);
-            if (userId == null)
-                return Result<AuthResponse>.Unauthorized("Invalid access token");
+            var hash = _tokenService.HashToken(request.RefreshToken);
 
-            var user = await _userManager.FindByIdAsync(userId);
+            var token = await _context.RefreshTokens.Include(x => x.User).FirstOrDefaultAsync(x => x.TokenHash == hash);
 
-            if (user == null || user.RefreshToken != request.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
-                return Result<AuthResponse>.Unauthorized("Refresh token expired or invalid");
+            if (token == null || token.Revoked || token.ExpiresAt < DateTime.UtcNow)
+                return Result<AuthResponse>.Unauthorized("Invalid refresh token");
+
+            var user = token.User;
 
             var roles = await _userManager.GetRolesAsync(user);
+
             var newAccessToken = _tokenService.GenerateAccessToken(user, roles);
+
             var newRefreshToken = _tokenService.GenerateRefreshToken();
 
-            user.RefreshToken = newRefreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            var newHash = _tokenService.HashToken(newRefreshToken);
 
-            await _userManager.UpdateAsync(user);
+            token.Revoked = true;
+
+            var newToken = new RefreshToken
+            {
+                UserId = user.Id,
+                TokenHash = newHash,
+                ExpiresAt = DateTime.UtcNow.AddDays(7),
+                ReplacedByTokenId = token.Id,
+                IpAddress = GetIpAddress(),     
+                DeviceInfo = GetDeviceInfo()
+
+            };
+
+            _context.RefreshTokens.Add(newToken);
+
+            await _context.SaveChangesAsync(ct);
 
             return Result<AuthResponse>.Ok(new AuthResponse
             {
                 AccessToken = newAccessToken,
                 RefreshToken = newRefreshToken,
-                AccessTokenExpiry = DateTime.UtcNow.AddMinutes(15),
                 UserId = user.Id,
                 FullName = user.FullName,
                 Role = roles.FirstOrDefault() ?? string.Empty
             });
         }
 
-        public async Task<Result<string>> LogoutAsync(string userId, CancellationToken ct = default)
+        public async Task<Result<bool>> LogoutAsync(string? refreshToken, CancellationToken ct)
         {
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-                return Result<string>.NotFound("User not found");
+            if (string.IsNullOrEmpty(refreshToken))
+                return Result<bool>.Ok(true);
 
-            user.RefreshToken = null;
-            user.RefreshTokenExpiryTime = null;
+            var hash = _tokenService.HashToken(refreshToken);
 
-            await _userManager.UpdateAsync(user);
-            return Result<string>.Ok("Logged out successfully");
+            var token = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == hash, ct);
+
+            if (token == null)
+                return Result<bool>.Ok(true);
+
+            token.Revoked = true;
+
+            await _context.SaveChangesAsync(ct);
+
+            return Result<bool>.Ok(true);
         }
 
-        public async Task<Result<UserDetailRequest>> GetCurrentUserAsync(string userId, CancellationToken ct = default)
+        public async Task<Result<MeResponse>> GetMeAsync(string userId, CancellationToken ct)
         {
             var user = await _userManager.FindByIdAsync(userId);
-            if (user == null)
-                return Result<UserDetailRequest>.NotFound("User not found");
+
+            if (user == null || !user.IsActive)
+                return Result<MeResponse>.Unauthorized();
+
             var roles = await _userManager.GetRolesAsync(user);
-            var userDetail = new UserDetailRequest
+
+            var response = new MeResponse
             {
                 Id = user.Id,
                 FullName = user.FullName,
-                Email = user.Email!,
                 Role = roles.FirstOrDefault() ?? string.Empty
             };
-            return Result<UserDetailRequest>.Ok(userDetail);
+            return Result<MeResponse>.Ok(response);
+        }
+
+        private string GetIpAddress()
+        {
+            if (_httpContextAccessor.HttpContext?.Request.Headers.ContainsKey("X-Forwarded-For") == true)
+                return _httpContextAccessor.HttpContext.Request.Headers["X-Forwarded-For"]!;
+
+            return _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? "Unknown";
+        }
+
+        private string GetDeviceInfo()
+        {
+            return _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString() ?? "Unknown Device";
         }
     }
 }

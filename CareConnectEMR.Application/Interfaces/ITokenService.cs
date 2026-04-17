@@ -11,6 +11,6 @@ namespace CareConnectEMR.Application.Interfaces
     {
         string GenerateAccessToken(ApplicationUser user,IList<string> roles);
         string GenerateRefreshToken();
-        string? GetUserIdFromExpiredToken(string token);
+        string HashToken(string token);
     }
 }
