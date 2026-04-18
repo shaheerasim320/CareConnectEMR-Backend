@@ -22,12 +22,12 @@ namespace CareConnectEMR.Application.DTOs.Dashboard
     public class AppointmentBreakdown
     {
         public int Scheduled { get; set; }
-        public int Confimed { get; set; }
+        public int Confirmed { get; set; }
         public int CheckedIn { get; set; }
         public int Completed { get; set; }
         public int Cancelled { get; set; }
         public int NoShow { get; set; }
-        public int Total => Scheduled + Confimed + CheckedIn + Completed + Cancelled + NoShow;
+        public int Total => Scheduled + Confirmed + CheckedIn + Completed + Cancelled + NoShow;
     }
 
     public class DoctorLoad
