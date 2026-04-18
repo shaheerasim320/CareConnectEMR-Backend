@@ -105,7 +105,8 @@ namespace CareConnectEMR.API
                 {
                     policy.WithOrigins("http://localhost:4200")
                           .AllowAnyHeader()
-                          .AllowAnyMethod();
+                          .AllowAnyMethod()
+                          .AllowCredentials();
                 });
             });
 
@@ -144,7 +145,7 @@ namespace CareConnectEMR.API
             app.UseForwardedHeaders();
 
             app.UseCors("AllowAngular");
-
+            
             if (enableHttpsRedirection)
             {
                 app.UseHttpsRedirection();

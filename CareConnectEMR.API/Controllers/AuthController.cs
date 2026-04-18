@@ -61,8 +61,8 @@ namespace CareConnectEMR.API.Controllers
                     Response.Cookies.Append("refreshToken", result.Data.RefreshToken, new CookieOptions
                     {
                         HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
+                        Secure = Request.IsHttps,
+                        SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
                         Expires = DateTime.UtcNow.AddDays(7)
                     });
                 }
