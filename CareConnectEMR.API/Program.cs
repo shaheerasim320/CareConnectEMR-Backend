@@ -103,7 +103,7 @@ namespace CareConnectEMR.API
             {
                 options.AddPolicy("AllowAngular",policy=>
                 {
-                    policy.WithOrigins("http://localhost:4200")
+                    policy.WithOrigins("http://localhost:4200", "https://careconnect-emr.vercel.app")
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           .AllowCredentials();
@@ -144,6 +144,8 @@ namespace CareConnectEMR.API
 
             app.UseForwardedHeaders();
 
+            app.UseRouting();
+
             app.UseCors("AllowAngular");
             
             if (enableHttpsRedirection)
@@ -159,7 +161,6 @@ namespace CareConnectEMR.API
                 await IdentitySeeder.SeedAsync(userManager, roleManager);
             }
 
-                // Configure the HTTP request pipeline.
                 if (enableSwagger)
                 {
                     if (requireSwaggerAuth)
@@ -231,7 +232,6 @@ namespace CareConnectEMR.API
                     app.UseSwaggerUI();
                 }
 
-            app.UseForwardedHeaders();
 
             if (enableHttpsRedirection)
             {
