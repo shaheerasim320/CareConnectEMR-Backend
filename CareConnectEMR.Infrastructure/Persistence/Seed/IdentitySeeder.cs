@@ -1,10 +1,5 @@
 ﻿using CareConnectEMR.Domain.Enitites;
 using Microsoft.AspNetCore.Identity;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CareConnectEMR.Infrastructure.Persistence.Seed
 {
@@ -13,34 +8,37 @@ namespace CareConnectEMR.Infrastructure.Persistence.Seed
         public static async Task SeedAsync(UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
         {
             string[] roles = { "Admin", "Doctor", "Receptionist" };
-
             foreach (var role in roles)
             {
-                if(!await roleManager.RoleExistsAsync(role))
+                if (!await roleManager.RoleExistsAsync(role))
                 {
                     await roleManager.CreateAsync(new IdentityRole(role));
                 }
             }
 
-            var adminEmail = "admin@careconnect.com";
-
-            var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-            if (adminUser == null)
+            var usersToSeed = new List<(ApplicationUser User, string Password, string Role)>
             {
-                var user = new ApplicationUser
-                {
-                    UserName = "admin",
-                    Email = adminEmail,
-                    FirstName = "Evelyn",
-                    LastName = "Reed",
-                };
+                (new ApplicationUser { UserName = "admin", Email = "admin@careconnect.com", FirstName = "Evelyn", LastName = "Reed" }, "Admin@123", "Admin"),
 
-                var result = await userManager.CreateAsync(user, "Admin@123");
+                (new ApplicationUser { UserName = "sarah", Email = "sarah@careconnect.com", FirstName = "Sarah", LastName = "Khan" }, "Doctor@123", "Doctor"),
+                (new ApplicationUser { UserName = "ali", Email = "ali@careconnect.com", FirstName = "Ali", LastName = "Ahmed" }, "Doctor@123", "Doctor"),
+                (new ApplicationUser { UserName = "maryam", Email = "maryam@careconnect.com", FirstName = "Maryam", LastName = "Noor" }, "Doctor@123", "Doctor"),
 
-                if (result.Succeeded)
+                (new ApplicationUser { UserName = "reception1", Email = "reception1@careconnect.com", FirstName = "Reception", LastName = "One" }, "Staff@123", "Receptionist"),
+                (new ApplicationUser { UserName = "reception2", Email = "reception2@careconnect.com", FirstName = "Reception", LastName = "Two" }, "Staff@123", "Receptionist")
+            };
+
+            foreach (var seedData in usersToSeed)
+            {
+                var existingUser = await userManager.FindByEmailAsync(seedData.User.Email!);
+
+                if (existingUser == null)
                 {
-                    await userManager.AddToRoleAsync(user, "Admin");
+                    var result = await userManager.CreateAsync(seedData.User, seedData.Password);
+                    if (result.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(seedData.User, seedData.Role);
+                    }
                 }
             }
         }

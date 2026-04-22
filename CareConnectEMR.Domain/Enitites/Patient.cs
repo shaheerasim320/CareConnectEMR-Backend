@@ -10,7 +10,7 @@ namespace CareConnectEMR.Domain.Enitites
     public class Patient : IAuditable
     {
         public Guid Id { get; set; } = Guid.NewGuid();
-        public string MRN { get; set; } = string.Empty;
+        public string? MRN { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public DateOnly DateOfBirth { get; set; }

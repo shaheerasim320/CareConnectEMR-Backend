@@ -156,9 +156,11 @@ namespace CareConnectEMR.API
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
+                var context = services.GetRequiredService<AppDbContext>();
                 var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
                 var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>(); 
                 await IdentitySeeder.SeedAsync(userManager, roleManager);
+                await DataSeeder.SeedDataAsync(context, userManager);
             }
 
                 if (enableSwagger)

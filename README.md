@@ -354,13 +354,38 @@ Returns database connectivity status. Used by CI/CD pipeline to verify deploymen
 
 ## Default Dev Credentials
 
-```
-Email:    admin@careconnect.com
-Password: Admin@123
-Role:     Admin
-```
+> ⚠️ Warning:  These credentials are seeded via `IdentitySeeder.cs` and `DataSeeder.cs` for development only. Change before any public deployment.
 
-> These credentials are seeded via `IdentitySeeder.cs` for development only. Change before any public deployment.
+### Admin User
+
+| Email | Password | Role | Full Name
+|--------|-------------|-------------|-------------|
+| admin@careconnect.com | Admin@123 | Admin | Evelyn Reed |
+
+### Doctors
+
+| Email | Password | Role | Full Name
+|--------|-------------|-------------|-------------|
+| sarah@careconnect.com | Doctor@123 | Doctor | Sarah Khan
+| ali@careconnect.com | Doctor@123 | Doctor | Ali Ahmed
+| maryam@careconnect.com | Doctor@123 | Doctor | Maryam Noor
+
+### Front Desk (Receptionists)
+
+| Email | Password | Role | Full Name
+|--------|-------------|-------------|-------------|
+| reception1@careconnect.com | Staff@123 | Receptionist | Reception One
+| reception2@careconnect.com | Staff@123 | Receptionist | Reception Two
+
+### 📊 Seeded Clinical Data Summary
+The development database is automatically populated with a baseline of realistic data to facilitate dashboard testing and UI development.
+- Total Patients: 30
+   - MRN Generation: Automatically assigned from MRN-1000 to MRN-1029.
+   - Demographics: Includes a realistic distribution of ages, genders, and blood types.
+- Total Appointments: 50
+  - Timeline: Chronologically distributed (approx. 3 days past, today, and 3 days future).
+  - Status Variety: Randomized across all system states (Scheduled, Confirmed, CheckedIn, Completed, Cancelled, NoShow).
+  - Doctor Assignment: Load-balanced across all three seeded doctors to test "Top Doctors" dashboard metrics.
 
 ---
 

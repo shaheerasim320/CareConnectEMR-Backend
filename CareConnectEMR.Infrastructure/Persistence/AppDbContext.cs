@@ -60,7 +60,13 @@ namespace CareConnectEMR.Infrastructure.Persistence
 
                 entity.Property(p => p.MRN)
                 .IsRequired()
-                .HasMaxLength(20);
+                .HasMaxLength(20)
+                .HasDefaultValueSql("FORMAT(NEXT VALUE FOR PatientNumbers, 'MRN-0000')")
+                .ValueGeneratedOnAdd()
+                .Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+
+                entity.Property(p => p.MRN).Metadata.SetBeforeSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
+                entity.Property(p => p.MRN).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Ignore);
 
                 entity.HasIndex(p=>p.MRN)
                 .IsUnique()
