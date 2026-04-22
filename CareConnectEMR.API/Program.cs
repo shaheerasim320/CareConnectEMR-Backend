@@ -106,7 +106,8 @@ namespace CareConnectEMR.API
                     policy.WithOrigins("http://localhost:4200", "https://careconnect-emr.vercel.app")
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          .AllowCredentials();
+                          .AllowCredentials()
+                          .WithExposedHeaders("Content-Type");
                 });
             });
 
@@ -233,12 +234,6 @@ namespace CareConnectEMR.API
                     app.UseSwagger();
                     app.UseSwaggerUI();
                 }
-
-
-            if (enableHttpsRedirection)
-            {
-                app.UseHttpsRedirection();
-            }
 
             app.UseAuthentication();
 

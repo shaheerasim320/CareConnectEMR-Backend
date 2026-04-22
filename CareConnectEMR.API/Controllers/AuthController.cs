@@ -32,9 +32,10 @@ namespace CareConnectEMR.API.Controllers
                     Response.Cookies.Append("refreshToken", result.Data.RefreshToken, new CookieOptions
                     {
                         HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.None,
-                        Expires = DateTime.UtcNow.AddDays(7)
+                        Secure = Request.IsHttps,
+                        SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+                        Expires = DateTime.UtcNow.AddDays(7),
+                        Path = "/"
                     });
                 }
             }
@@ -63,7 +64,8 @@ namespace CareConnectEMR.API.Controllers
                         HttpOnly = true,
                         Secure = Request.IsHttps,
                         SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
-                        Expires = DateTime.UtcNow.AddDays(7)
+                        Expires = DateTime.UtcNow.AddDays(7),
+                        Path = "/"
                     });
                 }
             }
@@ -77,7 +79,7 @@ namespace CareConnectEMR.API.Controllers
             var refreshToken = Request.Cookies["refreshToken"];
 
             var result = await _authService.LogoutAsync(refreshToken, ct);
-             Response.Cookies.Delete("refreshToken");
+             Response.Cookies.Delete("refreshToken", new CookieOptions { Path = "/" });
              return StatusCode(result.StatusCode, result);
         }
 
