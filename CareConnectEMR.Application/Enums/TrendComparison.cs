@@ -1,0 +1,17 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CareConnectEMR.Application.Enums
+{
+    public enum TrendComparison
+    {
+        Yesterday,
+        Month,
+        Remaining,
+        Live,
+        Career
+    }
+}

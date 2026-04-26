@@ -1,6 +1,7 @@
 ﻿using CareConnectEMR.Application.Common;
 using CareConnectEMR.Application.DTOs.Dashboard;
 using CareConnectEMR.Application.DTOs.Dashboard.Shared;
+using CareConnectEMR.Application.Enums;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Infrastructure.Persistence;
 using Dapper;
@@ -22,6 +23,65 @@ namespace CareConnectEMR.Infrastructure.Services
 
         private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString);
 
+        private StatCard BuildPercentStat(int count, int previous, TrendComparison comparison, bool allowZeroPrevious = true)
+        {
+            decimal? trend = null;
+            TrendDirection direction = TrendDirection.Neutral;
+            if (previous > 0)
+            {
+                trend = Math.Round(((decimal)(count - previous) / previous) * 100, 1);
+            }
+            else if (previous == 0)
+            {
+                if (count > 0 && allowZeroPrevious)
+                {
+                    trend = 100.0m;
+                }
+                else if (count == 0 && allowZeroPrevious)
+                {
+                    trend = 0.0m;
+                }                
+            }
+
+            if (trend.HasValue)
+            {
+                if (trend > 0) direction = TrendDirection.Up;
+                else if (trend < 0) direction = TrendDirection.Down;
+            }
+            return new StatCard
+            {
+                Count = count,
+                TrendValue = trend,
+                TrendType = TrendType.Percent,
+                TrendDirection = direction,
+                TrendComparison = comparison
+            };
+        }
+
+        private StatCard BuildNumberStat(int count, int previous, TrendComparison comparison)
+        {
+            var diff = count - previous;
+
+            var direction = diff > 0 ? TrendDirection.Up : diff < 0 ? TrendDirection.Down : TrendDirection.Neutral;
+
+            return new StatCard
+            {
+                Count = count,
+                TrendValue = Math.Abs(diff),
+                TrendType = TrendType.Number,
+                TrendDirection = direction,
+                TrendComparison = comparison
+            };
+        }
+
+        private StatCard BuildSimpleStat(int count, TrendComparison comparison)
+        {
+            return new StatCard
+            {
+                Count = count,
+                TrendComparison = comparison
+            };
+        }
         public async Task<Result<AdminDashboardResponse>> GetAdminDashboardAsync(CancellationToken ct)
         {
             var kpiSql = """
@@ -118,26 +178,10 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var response = new AdminDashboardResponse
             {
-                TotalPatients = new StatCard
-                {
-                    Count = (int)kpiRaw.TotalPatients_Count,
-                    PreviousCount = (int)kpiRaw.TotalPatients_PreviousMonthCount
-                },
-                AppointmentsToday = new StatCard
-                {
-                    Count = (int)kpiRaw.AppointmentsToday_Count,
-                    PreviousCount = (int)kpiRaw.AppointmentsPreviousDay_Count
-                },
-                CompletedToday = new StatCard
-                {
-                    Count = (int)kpiRaw.CompletedToday_Count,
-                    PreviousCount = (int)kpiRaw.CompletedYesterday_Count
-                },
-                CancellationRate = new StatCard
-                {
-                    Count = (int)kpiRaw.CancellationRate_Count,
-                    PreviousCount = (int)kpiRaw.CancellationRate_YesterdayCount
-                },
+                TotalPatients = BuildPercentStat((int)kpiRaw.TotalPatients_Count, (int)kpiRaw.TotalPatients_PreviousMonthCount,TrendComparison.Month,allowZeroPrevious: false),
+                AppointmentsToday = BuildPercentStat((int)kpiRaw.AppointmentsToday_Count, (int)kpiRaw.AppointmentsPreviousDay_Count,TrendComparison.Yesterday),
+                CompletedToday = BuildPercentStat((int)kpiRaw.CompletedToday_Count,(int)kpiRaw.CompletedYesterday_Count,TrendComparison.Yesterday),
+                CancellationRate = BuildPercentStat((int)kpiRaw.CancellationRate_Count,(int)kpiRaw.CancellationRate_YesterdayCount,TrendComparison.Yesterday),
                 BreakdownToday = breakdown,
                 TopDoctorsToday = topDoctors,
                 RecentRegistrations = recentPats
@@ -229,17 +273,16 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var response = new DoctorDashboardResponse
             {
-                MyAppointmentsToday = new StatCard
-                {
-                    Count = (int)kpiRaw.MyAppointmentsToday_Count,
-                    PreviousCount = (int)kpiRaw.MyAppointmentsToday_PreviousCount
-                },
+                MyAppointmentsToday = BuildNumberStat((int)kpiRaw.MyAppointmentsToday_Count, (int)kpiRaw.MyAppointmentsToday_PreviousCount,TrendComparison.Yesterday),
                 MyCompletedToday = new StatCard
                 {
                     Count = (int)kpiRaw.MyCompletedToday_Count,
-                    PreviousCount = (int)kpiRaw.MyCompletedToday_PreviousCount
+                    TrendValue = (int)kpiRaw.MyAppointmentsToday_Count - (int)kpiRaw.MyCompletedToday_Count,
+                    TrendType = TrendType.Number,
+                    TrendDirection = TrendDirection.Neutral,
+                    TrendComparison = TrendComparison.Remaining
                 },
-                TotalPatientsSeen = (int)kpiRaw.TotalPatientsSeen,
+                TotalPatientsSeen = BuildSimpleStat((int)kpiRaw.TotalPatientsSeen,TrendComparison.Career),
                 NextAppointment = next,
                 TodaySchedule = sched
             };
@@ -311,17 +354,9 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var response = new ReceptionistDashboardResponse
             {
-                AppointmentsToday = new StatCard
-                {
-                    Count = (int)kpiRaw.AppointmentsToday_Count,
-                    PreviousCount = (int)kpiRaw.AppointmentsToday_PreviousCount
-                },
-                CheckedInNow = (int)kpiRaw.CheckedInNow,
-                NewPatientsToday = new StatCard
-                {
-                    Count = (int)kpiRaw.NewPatientsToday_Count,
-                    PreviousCount = (int)kpiRaw.NewPatientsToday_PreviousCount
-                },
+                AppointmentsToday = BuildNumberStat((int)kpiRaw.AppointmentsToday_Count,(int)kpiRaw.AppointmentsToday_PreviousCount,TrendComparison.Yesterday),
+                CheckedInNow = BuildSimpleStat((int)kpiRaw.CheckedInNow,TrendComparison.Live),
+                NewPatientsToday = BuildNumberStat((int)kpiRaw.NewPatientsToday_Count,(int)kpiRaw.NewPatientsToday_PreviousCount,TrendComparison.Yesterday),
                 TodayQueue = queue
             };
 

@@ -132,12 +132,12 @@ namespace CareConnectEMR.Infrastructure.Services
             });
         }
 
-        public async Task<Result<bool>> LogoutAsync(string? refreshToken, CancellationToken ct)
+        public async Task<Result<bool>> LogoutAsync(LogoutRequest request, CancellationToken ct)
         {
-            if (string.IsNullOrEmpty(refreshToken))
+            if (string.IsNullOrEmpty(request.RefreshToken))
                 return Result<bool>.Ok(true);
 
-            var hash = _tokenService.HashToken(refreshToken);
+            var hash = _tokenService.HashToken(request.RefreshToken);
 
             var token = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.TokenHash == hash, ct);
 
@@ -149,24 +149,6 @@ namespace CareConnectEMR.Infrastructure.Services
             await _context.SaveChangesAsync(ct);
 
             return Result<bool>.Ok(true);
-        }
-
-        public async Task<Result<MeResponse>> GetMeAsync(string userId, CancellationToken ct)
-        {
-            var user = await _userManager.FindByIdAsync(userId);
-
-            if (user == null || !user.IsActive)
-                return Result<MeResponse>.Unauthorized();
-
-            var roles = await _userManager.GetRolesAsync(user);
-
-            var response = new MeResponse
-            {
-                Id = user.Id,
-                FullName = user.FullName,
-                Role = roles.FirstOrDefault() ?? string.Empty
-            };
-            return Result<MeResponse>.Ok(response);
         }
 
         private string GetIpAddress()

@@ -117,7 +117,6 @@ JWT login supporting email or username. Refresh token rotation with `RememberMe`
 POST   /api/Auth/login
 POST   /api/Auth/refresh-token
 POST   /api/Auth/logout
-GET    /api/Auth/me
 ```
 
 ### Users

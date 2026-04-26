@@ -10,10 +10,9 @@ namespace CareConnectEMR.Application.DTOs.Dashboard
     public class ReceptionistDashboardResponse
     {
         public StatCard AppointmentsToday { get; set; } = new();
-        public int CheckedInNow { get; set; }        
+        public StatCard CheckedInNow { get; set; }        
         public StatCard NewPatientsToday { get; set; } = new();
 
-        // Row 2 — queue
         public List<AppointmentQueueItem> TodayQueue { get; set; } = [];
     }
 

@@ -1,18 +1,19 @@
 
+using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Domain.Enitites;
 using CareConnectEMR.Infrastructure.Persistence;
 using CareConnectEMR.Infrastructure.Persistence.Seed;
+using CareConnectEMR.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Microsoft.OpenApi.Models;
-using CareConnectEMR.Application.Interfaces;
-using CareConnectEMR.Infrastructure.Services;
-using Microsoft.AspNetCore.HttpOverrides;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace CareConnectEMR.API
 {
@@ -38,7 +39,11 @@ namespace CareConnectEMR.API
 
             // Add services to the container.
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            });
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -118,11 +123,11 @@ namespace CareConnectEMR.API
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
-                    Type = SecuritySchemeType.ApiKey,
+                    Type = SecuritySchemeType.Http,
                     Scheme = "Bearer",
                     BearerFormat = "JWT",
                     In = ParameterLocation.Header,
-                    Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\nExample: \"Bearer 12345abcdef\""
+                    Description = "Simply paste your JWT token below. No need to type 'Bearer'!"
                 });
 
                 options.AddSecurityRequirement(new OpenApiSecurityRequirement

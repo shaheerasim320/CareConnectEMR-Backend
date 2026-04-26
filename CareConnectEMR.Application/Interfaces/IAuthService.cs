@@ -14,7 +14,6 @@ namespace CareConnectEMR.Application.Interfaces
     {
         Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken ct);
         Task<Result<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request, CancellationToken ct);
-        Task<Result<bool>> LogoutAsync(string? refreshToken, CancellationToken ct);
-        Task<Result<MeResponse>> GetMeAsync(string userId, CancellationToken ct);
+        Task<Result<bool>> LogoutAsync(LogoutRequest request, CancellationToken ct);
     }
 }
