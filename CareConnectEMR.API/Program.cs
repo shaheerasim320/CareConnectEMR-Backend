@@ -106,9 +106,12 @@ namespace CareConnectEMR.API
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAngular",policy=>
+                options.AddPolicy("AllowAngular", policy =>
                 {
-                    policy.WithOrigins("http://localhost:4200", "https://careconnect-emr.vercel.app")
+                    policy.WithOrigins(
+                              "http://localhost:4200",
+                              "https://careconnect-emr.vercel.app"
+                          )
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           .AllowCredentials()
