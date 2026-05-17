@@ -39,7 +39,7 @@
 
 ## Authentication System
 
-The API uses **JWT Access Tokens with Refresh Token Rotation** for secure session management.
+The API uses **JWT Access Tokens with Refresh Token Rotation** for secure session management, fully supporting a **Backend-For-Frontend (BFF)** architecture.
 
 ### Access Token
 
@@ -47,20 +47,22 @@ The API uses **JWT Access Tokens with Refresh Token Rotation** for secure sessio
 - Contains user identity and role claims
 - Signed using `HMAC SHA256`
 - Expiration: **15 minutes**
+- Returned in the JSON response body and stored only in memory by the client.
 
 Access tokens are **not stored in the database**.
 
 They are verified via signature and expiration.
 
-### Refresh Token
+### Refresh Token (BFF Cookie Pattern)
 
 - Long lived token
 - Stored **hashed in the database**
 - Used to generate new access tokens
 - Rotated on every refresh request
 - Expiration: **7 days**
+- **Issued as an `HttpOnly`, `Secure`, `SameSite=None` cookie** directly by the API.
 
-Refresh tokens enable **silent re-authentication** without forcing the user to log in again.
+By issuing the refresh token as an `HttpOnly` cookie, the backend actively implements a secure BFF pattern. The refresh token is completely inaccessible to frontend JavaScript, significantly mitigating XSS risks while allowing seamless, silent re-authentication.
 
 ---
 

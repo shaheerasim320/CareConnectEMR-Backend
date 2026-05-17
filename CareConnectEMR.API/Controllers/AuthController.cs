@@ -29,8 +29,6 @@ namespace CareConnectEMR.API.Controllers
             if (result.IsSuccess && result.Data?.RefreshToken != null)
             {
                 SetRefreshTokenCookie(result.Data.RefreshToken);
-
-                result.Data.RefreshToken = null;
             }
 
             return StatusCode(result.StatusCode, result);
@@ -51,7 +49,6 @@ namespace CareConnectEMR.API.Controllers
             if (result.IsSuccess && result.Data?.RefreshToken != null)
             {
                 SetRefreshTokenCookie(result.Data.RefreshToken);
-                result.Data.RefreshToken = null;
             }
 
             return StatusCode(result.StatusCode, result);

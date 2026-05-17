@@ -19,7 +19,7 @@ namespace CareConnectEMR.API.Controllers
         public async Task<IActionResult> GetDashboard(CancellationToken ct)
         {
             var role = User.FindFirstValue(ClaimTypes.Role)!;
-            var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub)!;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
             if (role == "Admin")
             {

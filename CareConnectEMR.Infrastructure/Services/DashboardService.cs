@@ -192,38 +192,43 @@ namespace CareConnectEMR.Infrastructure.Services
 
         public async Task<Result<DoctorDashboardResponse>> GetDoctorDashboardAsync(string doctorId, CancellationToken ct)
         {
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+            var yesterday = today.AddDays(-1);
+
+            var param = new
+            {
+                DoctorId = doctorId,
+                Today = today,
+                Tomorrow = tomorrow,
+                Yesterday = yesterday
+            };
+
             var kpiSql = """
-            DECLARE @Today     DATE = CAST(GETUTCDATE() AS DATE);
-            DECLARE @Tomorrow  DATE = DATEADD(DAY,  1, @Today);
-            DECLARE @Yesterday DATE = DATEADD(DAY, -1, @Today);
-
             SELECT
-                -- My appointments today vs yesterday
                 (SELECT COUNT(*) FROM Appointments
                  WHERE DoctorId = @DoctorId
                    AND StartTime >= @Today AND StartTime < @Tomorrow)
-                    AS MyAppointmentsToday_Count,
+                        AS MyAppointmentsToday_Count,
 
                 (SELECT COUNT(*) FROM Appointments
                  WHERE DoctorId = @DoctorId
                    AND StartTime >= @Yesterday AND StartTime < @Today)
-                    AS MyAppointmentsToday_PreviousCount,
+                        AS MyAppointmentsToday_PreviousCount,
 
-                -- My completed today vs yesterday
                 (SELECT COUNT(*) FROM Appointments
                  WHERE DoctorId = @DoctorId AND Status = 'Completed'
                    AND StartTime >= @Today AND StartTime < @Tomorrow)
-                    AS MyCompletedToday_Count,
+                        AS MyCompletedToday_Count,
 
                 (SELECT COUNT(*) FROM Appointments
                  WHERE DoctorId = @DoctorId AND Status = 'Completed'
                    AND StartTime >= @Yesterday AND StartTime < @Today)
-                    AS MyCompletedToday_PreviousCount,
+                        AS MyCompletedToday_PreviousCount,
 
-                -- Career total — all completed appointments ever
                 (SELECT COUNT(*) FROM Appointments
                  WHERE DoctorId = @DoctorId AND Status = 'Completed')
-                    AS TotalPatientsSeen
+                        AS TotalPatientsSeen
             """;
 
             var nextSql = """
@@ -244,9 +249,6 @@ namespace CareConnectEMR.Infrastructure.Services
             """;
 
             var scheduleSql = """
-            DECLARE @Today    DATE = CAST(GETUTCDATE() AS DATE);
-            DECLARE @Tomorrow DATE = DATEADD(DAY, 1, @Today);
-
             SELECT
                 a.Id,
                 p.FirstName + ' ' + p.LastName  AS PatientName,
@@ -263,8 +265,6 @@ namespace CareConnectEMR.Infrastructure.Services
             ORDER BY a.StartTime ASC
             """;
 
-            var param = new { DoctorId = doctorId };
-
             using var conn = CreateConnection();
 
             var kpiRaw = await conn.QuerySingleAsync(kpiSql, param);
@@ -273,7 +273,11 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var response = new DoctorDashboardResponse
             {
-                MyAppointmentsToday = BuildNumberStat((int)kpiRaw.MyAppointmentsToday_Count, (int)kpiRaw.MyAppointmentsToday_PreviousCount,TrendComparison.Yesterday),
+                MyAppointmentsToday = BuildNumberStat(
+                    (int)kpiRaw.MyAppointmentsToday_Count,
+                    (int)kpiRaw.MyAppointmentsToday_PreviousCount,
+                    TrendComparison.Yesterday),
+
                 MyCompletedToday = new StatCard
                 {
                     Count = (int)kpiRaw.MyCompletedToday_Count,
@@ -282,7 +286,11 @@ namespace CareConnectEMR.Infrastructure.Services
                     TrendDirection = TrendDirection.Neutral,
                     TrendComparison = TrendComparison.Remaining
                 },
-                TotalPatientsSeen = BuildSimpleStat((int)kpiRaw.TotalPatientsSeen,TrendComparison.Career),
+
+                TotalPatientsSeen = BuildSimpleStat(
+                    (int)kpiRaw.TotalPatientsSeen,
+                    TrendComparison.Career),
+
                 NextAppointment = next,
                 TodaySchedule = sched
             };
