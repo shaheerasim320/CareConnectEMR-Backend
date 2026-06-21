@@ -32,9 +32,11 @@ public class PatientController : ControllerBase
 
     [HttpPost("register")]
     [Authorize(Roles = "Admin,Receptionist")]
-    public async Task<IActionResult> CreatePatient(
-        [FromBody] CreatePatientRequest request, CancellationToken ct)
+    public async Task<IActionResult> CreatePatient([FromBody] CreatePatientRequest request, CancellationToken ct)
     {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
         var result = await _patientService.CreatePatientAsync(request, ct);
         return StatusCode(result.StatusCode, result);
     }
