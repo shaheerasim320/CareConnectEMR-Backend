@@ -31,6 +31,12 @@ namespace CareConnectEMR.API.Controllers
         [Authorize(Roles = "Admin,Receptionist")]
         public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentRequest request, CancellationToken ct)
         {
+            if(request.PatientId == Guid.Empty)
+                ModelState.AddModelError(nameof(request.PatientId), "PatientId is required.");
+
+            if(!ModelState.IsValid)
+                return ValidationProblem(ModelState);
+
             var result = await _appointmentService.CreateAppointmentAsync(request, ct);
             return StatusCode(result.StatusCode, result);
         }
@@ -39,6 +45,8 @@ namespace CareConnectEMR.API.Controllers
         [Authorize(Roles = "Admin,Receptionist")]
         public async Task<IActionResult> UpdateAppointment(Guid id, [FromBody] UpdateAppointmentRequest request, CancellationToken ct)
         {
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
             var result = await _appointmentService.UpdateAppointmentAsync(id, request, ct);
             return StatusCode(result.StatusCode, result);
         }

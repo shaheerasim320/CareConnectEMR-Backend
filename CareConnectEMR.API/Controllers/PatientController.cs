@@ -2,6 +2,7 @@
 using CareConnectEMR.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CareConnectEMR.API.Controllers;
 
@@ -16,10 +17,12 @@ public class PatientController : ControllerBase
         => _patientService = patientService;
 
     [HttpGet("list")]
-    public async Task<IActionResult> GetPatients(
-        [FromQuery] PatientQueryParameters parameters, CancellationToken ct)
+    public async Task<IActionResult> GetPatients([FromQuery] PatientQueryParameters parameters, CancellationToken ct)
     {
-        var result = await _patientService.GetPatientsAsync(parameters, ct);
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        var result = await _patientService.GetPatientsAsync(parameters, role, userId, ct);
         return StatusCode(result.StatusCode, result);
     }
 

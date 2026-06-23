@@ -24,6 +24,8 @@ namespace CareConnectEMR.Application.Features.Appointment
             Reason = a.Reason,
             Notes = a.Notes,
             CancellationReason = a.CancellationReason,
+            RequiresFollowUp = a.RequiresFollowUp,
+            FollowUpDate = a.FollowUpDate,
             CreatedAt = a.CreatedAt
         };
     }

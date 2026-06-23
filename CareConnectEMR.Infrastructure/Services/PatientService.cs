@@ -21,18 +21,21 @@ namespace CareConnectEMR.Infrastructure.Services
             _context = context;
         }
 
-        public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, CancellationToken ct = default)
+        public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, string role, string currentUserId, CancellationToken ct = default)
         {
             if (parameters.Page < 1) parameters.Page = 1;
 
             var query = _context.Patients.AsNoTracking();
 
-            if (parameters.IsDeleted.HasValue) query = query.Where(p => p.IsDeleted == parameters.IsDeleted.Value);
+            query = parameters.IsDeleted.HasValue ? query.Where(p => p.IsDeleted == parameters.IsDeleted.Value) : query.Where(p => !p.IsDeleted);
+
+            if (role == "Doctor")
+                query = query.Where(p => _context.Appointments.Any(a => a.PatientId == p.Id && a.DoctorId == currentUserId));
 
             if (!string.IsNullOrEmpty(parameters.Search))
             {
                 var search = parameters.Search.ToLower().Trim();
-                query = query.Where(p => p.FirstName.ToLower().Contains(search) || p.LastName.ToLower().Contains(search) || p.MRN.ToLower().Contains(search) || p.PhoneNumber.Contains(search) || (p.Email != null && p.Email.ToLower().Contains(search)));
+                query = query.Where(p => p.FirstName.ToLower().Contains(search) || p.LastName.ToLower().Contains(search) || (p.MRN != null && p.MRN.ToLower().Contains(search)) || p.PhoneNumber.Contains(search) || (p.Email != null && p.Email.ToLower().Contains(search)));
             }
 
             var totalCount = await query.CountAsync(ct);

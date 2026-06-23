@@ -21,6 +21,8 @@ namespace CareConnectEMR.Application.DTOs.Appointment
         public string? Reason { get; set; }
         public string? Notes { get; set; }
         public string? CancellationReason { get; set; }
+        public bool? RequiresFollowUp { get; set; }
+        public DateTime? FollowUpDate { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

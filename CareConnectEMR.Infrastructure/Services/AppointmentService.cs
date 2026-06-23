@@ -226,6 +226,13 @@ namespace CareConnectEMR.Infrastructure.Services
             }
 
             appointment.Status = request.Status;
+
+            if (request.Status == AppointmentStatus.Completed && request.RequiresFollowUp == true)
+            {
+                appointment.RequiresFollowUp = true;
+                appointment.FollowUpDate = request.FollowUpDate;
+            }
+
             await _context.SaveChangesAsync(ct);
 
             return Result<AppointmentResponse>.Ok(AppointmentMapper.ToResponse(appointment));

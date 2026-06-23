@@ -27,6 +27,8 @@ namespace CareConnectEMR.Domain.Enitites
         public string? UpdatedBy { get; set; }
         public Patient Patient { get; set; } = null!;
         public ApplicationUser Doctor { get; set; } = null!;
+        public bool RequiresFollowUp { get; set; } = false;
+        public DateTime? FollowUpDate { get; set; }
         public int DurationMinutes =>
         (int)(EndTime - StartTime).TotalMinutes;
     }
