@@ -6,7 +6,7 @@
 ![Database](https://img.shields.io/badge/Database-SQL%20Server-red)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-**CareConnect EMR** is a production-grade **Electronic Medical Record backend system** built with **ASP.NET Core 8, Clean Architecture, SQL Server, and Docker**. Designed to mirror real hospital workflows at the level of platforms like CureMD and Cerner.
+**CareConnect EMR** is a production-grade **Electronic Medical Record backend system** built with **ASP.NET Core 8, Clean Architecture, and SQL Server**. It is explicitly designed to mirror real hospital workflows at the level of industry platforms like CureMD and Cerner.
 
 ---
 
@@ -31,9 +31,8 @@
 - Auto-audit fields via `SaveChangesAsync` override
 - Pagination, search, and filtering on all list endpoints
 - Global exception middleware — consistent JSON error responses
-- FluentValidation on all request DTOs
-- Docker support with multi-stage build
-- CI/CD via GitHub Actions → MonsterASP.NET
+- Data annotation validation (`[Required]`, `[Phone]`, `[StringLength]`) enforced via `ModelState` checks on all create/update endpoints
+- CI/CD via GitHub Actions → Native WebDeploy deployment to MonsterASP.NET
 
 ---
 
@@ -136,18 +135,25 @@ DELETE /api/User/delete/{id}
 ### Patients
 Full patient lifecycle — registration, search, soft delete. MRN generated via SQL Sequence (race-condition safe). Doctors restricted to updating patients assigned to them via appointments.
 
+Includes real-time baseline metric summary endpoint scoped securely by role.
+
 ```
 GET    /api/Patient/list
 GET    /api/Patient/view/{id}
 POST   /api/Patient/register
 PATCH    /api/Patient/update/{id}
 DELETE /api/Patient/delete/{id}
+GET    /api/Patient/stats
 ```
+
+Note on `/stats`: Role-scoped summary statistics (Admin/Receptionist: facility totals; Doctor: counts for own assigned patients only). No historical trends computed here.
 
 MRN format: `MRN-2026-000001`
 
 ### Appointments
 Booking with `StartTime` / `EndTime` (not duration). State machine enforces valid transitions. Double-booking prevention via interval overlap check. Soft-deleted patients cannot be booked.
+
+Includes status summary counter endpoint scoped securely by role.
 
 ```
 GET    /api/Appointment/list
@@ -156,14 +162,17 @@ POST   /api/Appointment/register
 PUT    /api/Appointment/update/{id}
 PATCH  /api/Appointment/status/{id}
 DELETE /api/Appointment/cancel/{id}
+GET    /api/Appointment/stats
 ```
+
+Note on `/stats`: Role-scoped status summary counters (Admin/Receptionist: facility totals; Doctor: counts for own appointments only).
 
 Status flow:
 ```
 Scheduled → Confirmed → CheckedIn → Completed
 Scheduled → Cancelled
 Confirmed → Cancelled
-CheckedIn → NoShow
+Confirmed → NoShow
 ```
 
 ### Dashboard
@@ -192,7 +201,7 @@ GET    /api/Dashboard/summary
 | Book appointment | ✅ | ❌ | ✅ |
 | View appointments | ✅ | ✅ | ✅ |
 | Reschedule appointment | ✅ | ❌ | ✅ |
-| Complete appointment | ✅ | ✅ | ❌ |
+| Update appointment status | ✅ | ✅ | ✅ |
 | Cancel appointment | ✅ | ❌ | ✅ |
 | User management | ✅ | ❌ | ❌ |
 
@@ -228,7 +237,23 @@ Infrastructure → Application → Domain
 
 ## Database
 
-SQL Server with EF Core migrations. Filtered indexes on `IsDeleted` columns. Composite indexes on frequently joined columns.
+You can apply and update your SQL Server database schema utilizing either the standard cross-platform .NET CLI toolchain or Visual Studio's native Package Manager Console.
+
+### Option A - Package Manager Console (Visual Studio)
+
+Set `CareConnectEMR.Infrastructure` as your Startup Project in the Solution Explorer, open the PMC (Tools > NuGet Package Manager > Package Manager Console), and run:
+
+```bash
+# Add a new structural migration
+Add-Migration InitialCreate
+
+# Apply structural schema changes directly onto your local database
+Update-Database
+```
+
+### Option B - .NET CLI
+
+Run the following ecosystem commands at your terminal shell terminal workspace root:
 
 ```bash
 # Create migration
@@ -246,77 +271,56 @@ dotnet ef database update \
 
 ## Running locally
 
-### Option A — dotnet CLI
+### Prerequisites
+Clone the repository locally:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/CareConnectEMR.git
+git clone [https://github.com/shaheerasim320/CareConnectEMR.git](https://github.com/shaheerasim320/CareConnectEMR.git)
 cd CareConnectEMR
 ```
 
-Create `CareConnectEMR.API/appsettings.Development.json`:
+### Local Secrets Setup (Development Mode)
+To keep secure development strings out of `appsettings.json` and prevent accidental git check-ins, configure the **Secret Manager** framework tool.
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=CareConnectEMR;Trusted_Connection=True;TrustServerCertificate=True;"
-  },
-  "Jwt": {
-    "Key": "YourLocalDevSecretKeyAtLeast32Chars!",
-    "Issuer": "CareConnectEMR",
-    "Audience": "CareConnectEMR-Angular-Client"
-  }
-}
-```
+Open a terminal window inside the `CareConnectEMR.API` directory containing your startup `csproj` and assign configuration variables locally:
 
 ```bash
-dotnet ef database update \
-  --project CareConnectEMR.Infrastructure \
-  --startup-project CareConnectEMR.API
+# Initialize User Secrets support configuration container
+dotnet user-secrets init
 
+# Set application strings locally
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=CareConnectEMR;Trusted_Connection=True;TrustServerCertificate=True;"
+dotnet user-secrets set "Jwt:Key" "YourLocalDevSecretKeyAtLeast32Chars!"
+dotnet user-secrets set "Jwt:Issuer" "CareConnectEMR"
+dotnet user-secrets set "Jwt:Audience" "CareConnectEMR-Angular-Client"
+```
+These properties are instantly transparently injected during target local execution.
+
+### Booting the application
+Apply your migrations to build the tables, and start the application server:
+```bash
 dotnet run --project CareConnectEMR.API
 ```
-
-Open Swagger: `https://localhost:{port}/swagger`
-
----
-
-### Option B — Docker Compose
-
-Create a `.env` file at the solution root:
-
-```env
-DEFAULT_CONNECTION=Server=host.docker.internal;Database=CareConnectEMR;Trusted_Connection=True;TrustServerCertificate=True;
-JWT_KEY=YourLocalDevSecretKeyAtLeast32Chars!
-JWT_ISSUER=CareConnectEMR
-JWT_AUDIENCE=CareConnectEMR-Angular-Client
-API_HTTP_PORT=8080
-```
-
-```bash
-docker-compose up --build
-```
-
-API available at `http://localhost:8080/swagger`
+Open Swagger UI: `https://localhost:{port}/swagger`
 
 ---
 
 ## CI/CD Pipeline
 
 ```
-git push → main
+git push → main / master
      │
      ▼
 ci.yml triggers
      ├── dotnet restore
-     ├── dotnet build (Release)
-     ├── dotnet test (skipped if no test projects)
-     └── docker build (verifies image builds)
+     ├── dotnet build (Release configuration)
+     └── dotnet test (Runs automatically if test suites exist)
      │
-     ▼  (only if ci passes)
+     ▼ (Only if validation jobs pass successfully)
 deploy-monsterasp.yml triggers
-     ├── dotnet publish
-     ├── Generate appsettings.Production.json from secrets
-     └── WebDeploy → MonsterASP.NET
+     ├── dotnet publish (Generates binary artifact payload)
+     ├── Generate appsettings.Production.json from repository secrets
+     └── WebDeploy → Pushes raw code payload natively to MonsterASP.NET
 ```
 
 ### GitHub Secrets required
@@ -340,7 +344,7 @@ deploy-monsterasp.yml triggers
 GET /health
 ```
 
-Returns database connectivity status. Used by CI/CD pipeline to verify deployment succeeded.
+Returns database connectivity status. Used by validation checks and external telemetry to verify deployment health.
 
 ```json
 {

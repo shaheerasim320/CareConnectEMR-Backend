@@ -25,7 +25,7 @@ namespace CareConnectEMR.Domain.Enitites
             (Confirmed, CheckedIn) => true,
             (Confirmed, Cancelled) => true,
             (CheckedIn, Completed) => true,
-            (CheckedIn, NoShow) => true,
+            (Confirmed, NoShow) => true,
             _ => false
         };
 
