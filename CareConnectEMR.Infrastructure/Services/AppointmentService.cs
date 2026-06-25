@@ -4,6 +4,8 @@ using CareConnectEMR.Application.Features.Appointment;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Domain.Enitites;
 using CareConnectEMR.Infrastructure.Persistence;
+using Dapper;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -17,6 +19,8 @@ namespace CareConnectEMR.Infrastructure.Services
     {
         private readonly AppDbContext _context;
         public AppointmentService(AppDbContext context) => _context = context;
+
+        private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString);
 
         public async Task<Result<PagedResult<AppointmentListResponse>>> GetAppointmentsAsync(AppointmentQueryParameters parameters, CancellationToken ct)
         {
@@ -57,7 +61,7 @@ namespace CareConnectEMR.Infrastructure.Services
                 {
                     Id = a.Id,
                     PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
-                    PatientMRN = a.Patient.MRN,
+                    PatientMRN = a.Patient.MRN!,
                     DoctorName = a.Doctor.FirstName + " " + a.Doctor.LastName,
                     StartTime = a.StartTime,
                     EndTime = a.EndTime,
@@ -260,6 +264,44 @@ namespace CareConnectEMR.Infrastructure.Services
 
             await _context.SaveChangesAsync(ct);
             return Result<string>.Ok("Appointment cancelled successfully.");
+        }
+
+        public async Task<Result<AppointmentStatsResponse>> GetAppointmentStatsAsync(string role, string currentUserId, CancellationToken ct = default)
+        {
+            using var connection = CreateConnection();
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+
+            if (role == "Doctor")
+            {
+                const string sql = @"
+                        SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.DoctorId=@DoctorId
+                        SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.DoctorId=@DoctorId AND a.Status='Completed'
+                        SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.DoctorId=@DoctorId AND a.Status IN ('Scheduled','Confirmed')";
+
+                using var multi = await connection.QueryMultipleAsync(sql, new { Today = today, Tomorrow = tomorrow, DoctorId = currentUserId });
+
+                return Result<AppointmentStatsResponse>.Ok(new AppointmentStatsResponse
+                {
+                    AppointmentsToday = await multi.ReadSingleAsync<int>(),
+                    CompletedToday = await multi.ReadSingleAsync<int>(),
+                    RemainingToday = await multi.ReadSingleAsync<int>()
+                });
+            }
+
+            const string adminSql = @"
+                    SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow
+                    SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.Status='Completed'
+                    SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.Status IN ('Cancelled','NoShow')";
+
+            using var adminMulti = await connection.QueryMultipleAsync(adminSql, new { Today = today, Tomorrow = tomorrow });
+
+            return Result<AppointmentStatsResponse>.Ok(new AppointmentStatsResponse
+            {
+                TotalToday = await adminMulti.ReadSingleAsync<int>(),
+                CompletedToday = await adminMulti.ReadSingleAsync<int>(),
+                CancelledOrNoShowToday = await adminMulti.ReadSingleAsync<int>()
+            });
         }
     }
 }

@@ -1,7 +1,9 @@
 ﻿using CareConnectEMR.Application.DTOs.Appointment;
 using CareConnectEMR.Application.Interfaces;
+using CareConnectEMR.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CareConnectEMR.API.Controllers
 {
@@ -63,6 +65,15 @@ namespace CareConnectEMR.API.Controllers
         public async Task<IActionResult> CancelAppointment(Guid id, [FromBody] CancelAppointmentRequest request, CancellationToken ct)
         {
             var result = await _appointmentService.CancelAppointmentAsync(id, request, ct);
+            return StatusCode(result.StatusCode, result);
+        }
+
+        [HttpGet("stats")]
+        public async Task<IActionResult> GetAppointmentStats(CancellationToken ct)
+        {
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            var result = await _appointmentService.GetAppointmentStatsAsync(role, userId, ct);
             return StatusCode(result.StatusCode, result);
         }
     }

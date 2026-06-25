@@ -11,15 +11,11 @@ namespace CareConnectEMR.Application.Interfaces
     public interface IAppointmentService
     {
         Task<Result<PagedResult<AppointmentListResponse>>> GetAppointmentsAsync(AppointmentQueryParameters parameters, CancellationToken ct);
-
         Task<Result<AppointmentResponse>> GetAppointmentByIdAsync( Guid id, CancellationToken ct);
-
         Task<Result<AppointmentResponse>> CreateAppointmentAsync( CreateAppointmentRequest request, CancellationToken ct);
-
         Task<Result<AppointmentResponse>> UpdateAppointmentAsync( Guid id, UpdateAppointmentRequest request, CancellationToken ct);
-
         Task<Result<AppointmentResponse>> UpdateStatusAsync( Guid id, UpdateStatusRequest request, CancellationToken ct);
-
         Task<Result<string>> CancelAppointmentAsync( Guid id, CancelAppointmentRequest request, CancellationToken ct);
+        Task<Result<AppointmentStatsResponse>> GetAppointmentStatsAsync(string role, string currentUserId, CancellationToken ct);
     }
 }
