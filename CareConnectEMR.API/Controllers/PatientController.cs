@@ -60,4 +60,13 @@ public class PatientController : ControllerBase
         var result = await _patientService.DeletePatientAsync(id, ct);
         return StatusCode(result.StatusCode, result);
     }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetPatientStats(CancellationToken ct)
+    {
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var result = await _patientService.GetPatientStatsAsync(role, userId, ct);
+        return StatusCode(result.StatusCode, result);
+    }
 }

@@ -4,7 +4,9 @@ using CareConnectEMR.Application.Features.Patient;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Domain.Enitites;
 using CareConnectEMR.Infrastructure.Persistence;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Dapper;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,6 +22,8 @@ namespace CareConnectEMR.Infrastructure.Services
         {
             _context = context;
         }
+
+        private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString); 
 
         public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, string role, string currentUserId, CancellationToken ct = default)
         {
@@ -149,6 +153,54 @@ namespace CareConnectEMR.Infrastructure.Services
             patient.IsDeleted = true;
             await _context.SaveChangesAsync(ct);
             return Result<string>.Ok($"Patient with ID {id} has been deleted.");
+        }
+
+        public async Task<Result<PatientStatResponse>> GetPatientStatsAsync(string role, string currentUserId, CancellationToken ct=default)
+        {
+            using var connection = CreateConnection();
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+
+            if (role == "Doctor")
+            {
+                const string sql = @"
+                        SELECT COUNT(DISTINCT a.PatientId) FROM Appointments a 
+                        WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.DoctorId=@DoctorId AND a.Status = 'CheckedIn';
+                        
+                        SELECT COUNT(DISTINCT PatientId) FROM Appointments 
+                        WHERE StartTime>=@Today AND StartTime<@Tomorrow AND Status = 'Completed' AND DoctorId=@DoctorId
+
+                        SELECT COUNT(DISTINCT a.PatientId)
+                        FROM Appointments a
+                        INNER JOIN Patients p ON p.Id = a.PatientId
+                        WHERE a.DoctorId=@DoctorId AND a.RequiresFollowUp=1 AND a.FollowUpDate IS NOT NULL
+                          AND CAST(a.FollowUpDate AS DATE)<=@TODAY
+                          AND p.IsDeleted = 0
+                          AND NOT EXISTS(SELECT 1 FROM Appointments later WHERE later.PatientId=a.PatientId AND later.DoctorId=a.DoctorId AND later.StartTime>=a.FollowUpDate AND later.Status NOT IN ('Cancelled','NoShow'));";
+
+                using var multi = await connection.QueryMultipleAsync(sql, new { Today = today, Tomorrow = tomorrow, DoctorId = currentUserId });
+
+                return Result<PatientStatResponse>.Ok(new PatientStatResponse
+                {
+                    PatientsWaiting = await multi.ReadSingleAsync<int>(),
+                    SeenToday = await multi.ReadSingleAsync<int>(),
+                    FollowUpsDue = await multi.ReadSingleAsync<int>()
+                });
+            }
+
+            const string adminSql = @"
+                        SELECT COUNT(*) FROM Patients WHERE IsDeleted = 0;
+                        SELECT COUNT(*) FROM Patients WHERE CreatedAt>=@TODAY AND CreatedAt<@TOMORROW AND IsDeleted = 0;
+                        SELECT COUNT(*) FROM Patients WHERE (Address IS NULL OR LTRIM(RTRIM(Address)) = '' OR BloodType IS NULL OR LTRIM(RTRIM(BloodType)) = '' OR EmergencyContactName IS NULL OR LTRIM(RTRIM(EmergencyContactName)) = '' OR EmergencyContactNumber IS NULL OR LTRIM(RTRIM(EmergencyContactNumber)) = '') AND IsDeleted =0;";
+
+            using var adminMulti = await connection.QueryMultipleAsync(adminSql, new { Today = today, Tomorrow = tomorrow });
+
+            return Result<PatientStatResponse>.Ok(new PatientStatResponse
+            {
+                TotalPatients = await adminMulti.ReadSingleAsync<int>(),
+                RegisteredToday = await adminMulti.ReadSingleAsync<int>(),
+                IncompleteRecords = await adminMulti.ReadSingleAsync<int>()
+            });
         }
     }
 }

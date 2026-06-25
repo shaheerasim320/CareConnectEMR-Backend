@@ -15,5 +15,6 @@ namespace CareConnectEMR.Application.Interfaces
         Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters paramters, string role, string currentUserId, CancellationToken ct);
         Task<Result<PatientResponse>> UpdatePatientAsync(Guid patientId, UpdatePatientRequest request, CancellationToken ct);
         Task<Result<string>> DeletePatientAsync(Guid patientId, CancellationToken ct);
+        Task<Result<PatientStatResponse>> GetPatientStatsAsync(string role, string currentUserId, CancellationToken ct);
     }
 }
