@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CareConnectEMR.Domain.Enums;
 
 namespace CareConnectEMR.Infrastructure.Services
 {
@@ -31,7 +32,15 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var query = _context.Patients.AsNoTracking();
 
-            query = parameters.IsDeleted.HasValue ? query.Where(p => p.IsDeleted == parameters.IsDeleted.Value) : query.Where(p => !p.IsDeleted);
+            if (role == "Admin")
+            {
+                query = parameters.IncludeAll ? query : query.Where(p => p.Status == (parameters.Status ?? PatientStatus.Active));
+            }
+            else
+            {
+                query = query.Where(p => p.Status == PatientStatus.Active);
+            }
+
 
             if (role == "Doctor")
                 query = query.Where(p => _context.Appointments.Any(a => a.PatientId == p.Id && a.DoctorId == currentUserId));
@@ -44,23 +53,14 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var totalCount = await query.CountAsync(ct);
 
-            
-            var items = await query
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip((parameters.Page - 1) * parameters.PageSize)
-                .Take(parameters.PageSize)
-                .Select(p => new PatientListResponse
-                {
-                    Id = p.Id,
-                    MRN = p.MRN,
-                    FullName = p.FirstName + " " + p.LastName,
-                    Age = DateTime.UtcNow.Year - p.DateOfBirth.Year,
-                    Gender = p.Gender,
-                    PhoneNumber = p.PhoneNumber,
-                    BloodType = p.BloodType,
-                    CreatedAt = p.CreatedAt
-                })
-                .ToListAsync(ct);
+
+            var entities = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((parameters.Page - 1) * parameters.PageSize)
+            .Take(parameters.PageSize)
+            .ToListAsync(ct);
+
+            var items = entities.Select(PatientMapper.ToListItem).ToList();
 
             var pagedData = new PagedResult<PatientListResponse>
             {
@@ -73,11 +73,13 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PagedResult<PatientListResponse>>.Ok(pagedData);
         }
 
-        public async Task<Result<PatientResponse>> GetPatientByIdAsync(Guid id, CancellationToken ct = default)
+        public async Task<Result<PatientResponse>> GetPatientByIdAsync(Guid id, string role, CancellationToken ct = default)
         {
-            var patient = await _context.Patients
-            .AsNoTracking()
-    .       FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
+            var query = _context.Patients.AsNoTracking();
+
+            query = role == "Admin" ? query : query.Where(p => p.Status == PatientStatus.Active);
+
+            var patient = await query.FirstOrDefaultAsync(p => p.Id == id, ct);
 
             if (patient is null)
                 return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
@@ -120,7 +122,7 @@ namespace CareConnectEMR.Infrastructure.Services
 
         public async Task<Result<PatientResponse>> UpdatePatientAsync(Guid id, UpdatePatientRequest request, CancellationToken ct = default)
         {
-            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && p.Status == PatientStatus.Active, ct);
             if (patient == null) return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
             
             bool isChanged = false;
@@ -143,18 +145,6 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
         }
 
-        public async Task<Result<string>> DeletePatientAsync(Guid id, CancellationToken ct = default)
-        {
-            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, ct);
-            if (patient == null)
-            {
-                return Result<string>.NotFound($"Patient with ID {id} not found.");
-            }
-            patient.IsDeleted = true;
-            await _context.SaveChangesAsync(ct);
-            return Result<string>.Ok($"Patient with ID {id} has been deleted.");
-        }
-
         public async Task<Result<PatientStatResponse>> GetPatientStatsAsync(string role, string currentUserId, CancellationToken ct=default)
         {
             using var connection = CreateConnection();
@@ -175,7 +165,7 @@ namespace CareConnectEMR.Infrastructure.Services
                         INNER JOIN Patients p ON p.Id = a.PatientId
                         WHERE a.DoctorId=@DoctorId AND a.RequiresFollowUp=1 AND a.FollowUpDate IS NOT NULL
                           AND CAST(a.FollowUpDate AS DATE)<=@TODAY
-                          AND p.IsDeleted = 0
+                          AND p.Status = 'Active'
                           AND NOT EXISTS(SELECT 1 FROM Appointments later WHERE later.PatientId=a.PatientId AND later.DoctorId=a.DoctorId AND later.StartTime>=a.FollowUpDate AND later.Status NOT IN ('Cancelled','NoShow'));";
 
                 using var multi = await connection.QueryMultipleAsync(sql, new { Today = today, Tomorrow = tomorrow, DoctorId = currentUserId });
@@ -189,9 +179,9 @@ namespace CareConnectEMR.Infrastructure.Services
             }
 
             const string adminSql = @"
-                        SELECT COUNT(*) FROM Patients WHERE IsDeleted = 0;
-                        SELECT COUNT(*) FROM Patients WHERE CreatedAt>=@TODAY AND CreatedAt<@TOMORROW AND IsDeleted = 0;
-                        SELECT COUNT(*) FROM Patients WHERE (Address IS NULL OR LTRIM(RTRIM(Address)) = '' OR BloodType IS NULL OR LTRIM(RTRIM(BloodType)) = '' OR EmergencyContactName IS NULL OR LTRIM(RTRIM(EmergencyContactName)) = '' OR EmergencyContactNumber IS NULL OR LTRIM(RTRIM(EmergencyContactNumber)) = '') AND IsDeleted =0;";
+                        SELECT COUNT(*) FROM Patients WHERE Status = 'Active';
+                        SELECT COUNT(*) FROM Patients WHERE CreatedAt>=@TODAY AND CreatedAt<@TOMORROW AND Status = 'Active';
+                        SELECT COUNT(*) FROM Patients WHERE (Address IS NULL OR LTRIM(RTRIM(Address)) = '' OR BloodType IS NULL OR LTRIM(RTRIM(BloodType)) = '' OR EmergencyContactName IS NULL OR LTRIM(RTRIM(EmergencyContactName)) = '' OR EmergencyContactNumber IS NULL OR LTRIM(RTRIM(EmergencyContactNumber)) = '') AND Status = 'Active';";
 
             using var adminMulti = await connection.QueryMultipleAsync(adminSql, new { Today = today, Tomorrow = tomorrow });
 
@@ -201,6 +191,20 @@ namespace CareConnectEMR.Infrastructure.Services
                 RegisteredToday = await adminMulti.ReadSingleAsync<int>(),
                 IncompleteRecords = await adminMulti.ReadSingleAsync<int>()
             });
+        }
+
+        public async Task<Result<string>> UpdatePatientStatusAsync(Guid id, PatientStatus status, CancellationToken ct = default)
+        {
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id, ct);
+            if (patient == null)
+                return Result<string>.NotFound($"Patient with ID {id} not found.");
+
+            if (patient.Status == status)
+                return Result<string>.Fail($"Patient is already {status}.");
+
+            patient.Status = status;
+            await _context.SaveChangesAsync(ct);
+            return Result<string>.Ok($"Patient with ID {id} has been set to {status}.");
         }
     }
 }

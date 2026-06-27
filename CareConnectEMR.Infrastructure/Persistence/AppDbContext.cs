@@ -1,14 +1,15 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using CareConnectEMR.Domain.Common;
+using CareConnectEMR.Domain.Enitites;
+using CareConnectEMR.Domain.Enums;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
-using CareConnectEMR.Domain.Common;
-using CareConnectEMR.Domain.Enitites;
 
 namespace CareConnectEMR.Infrastructure.Persistence
 {
@@ -109,8 +110,13 @@ namespace CareConnectEMR.Infrastructure.Persistence
                 entity.Property(p => p.BloodType)
                 .HasMaxLength(5);
 
-                entity.HasIndex(p => p.IsDeleted)
-                .HasFilter("[IsDeleted] = 0");
+                entity.Property(p => p.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasDefaultValue(PatientStatus.Active);
+
+                entity.HasIndex(p => p.Status)
+                .HasFilter("[Status] = 'Active'");
 
                 entity.Ignore(p=>p.FullName);
                 entity.Ignore(p => p.Age);

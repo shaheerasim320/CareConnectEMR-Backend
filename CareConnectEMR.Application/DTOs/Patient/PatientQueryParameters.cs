@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CareConnectEMR.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,6 +20,7 @@ namespace CareConnectEMR.Application.DTOs.Patient
             set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
         }
         public string? Search { get; set; }
-        public bool? IsDeleted { get; set; } = false;
+        public PatientStatus? Status { get; set; } = PatientStatus.Active;
+        public bool IncludeAll { get; set; } = false;
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CareConnectEMR.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,5 +22,6 @@ namespace CareConnectEMR.Application.DTOs.Patient
         public string? EmergencyContactName { get; set; }
         public string? EmergencyContactNumber { get; set; }
         public DateTime CreatedAt { get; set; }
+        public PatientStatus Status { get; set; }
     }
 }

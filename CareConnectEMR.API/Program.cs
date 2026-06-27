@@ -121,6 +121,8 @@ namespace CareConnectEMR.API
 
             builder.Services.AddSwaggerGen(options =>
             {
+                options.UseInlineDefinitionsForEnums();
+
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "CareConnect EMR API", Version = "v1" });
 
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme

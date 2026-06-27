@@ -23,7 +23,8 @@ namespace CareConnectEMR.Application.Features.Patient
             Allergies = p.Allergies,
             EmergencyContactName = p.EmergencyContactName,
             EmergencyContactNumber = p.EmergencyContactNumber,
-            CreatedAt = p.CreatedAt
+            CreatedAt = p.CreatedAt,
+            Status = p.Status
         };
 
         public static PatientListResponse ToListItem(CareConnectEMR.Domain.Enitites.Patient p) => new()
@@ -35,7 +36,8 @@ namespace CareConnectEMR.Application.Features.Patient
             Gender = p.Gender,
             PhoneNumber = p.PhoneNumber,
             BloodType = p.BloodType,
-            CreatedAt = p.CreatedAt
+            CreatedAt = p.CreatedAt,
+            Status = p.Status
         };
     }
 }

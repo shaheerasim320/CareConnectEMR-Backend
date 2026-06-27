@@ -1,4 +1,5 @@
 ﻿using CareConnectEMR.Domain.Common;
+using CareConnectEMR.Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,7 +27,7 @@ namespace CareConnectEMR.Domain.Enitites
         public string? CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public string? UpdatedBy { get; set; }
-        public bool IsDeleted { get; set; } = false;
+        public PatientStatus Status { get; set; } = PatientStatus.Active;
 
         public string FullName => $"{FirstName} {LastName}";
         public int Age =>

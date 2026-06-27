@@ -27,7 +27,7 @@
 - Appointment scheduling with state machine and double-booking prevention
 - Role-specific dashboard with KPI stats and trend analysis
 - Dapper for aggregate/reporting queries, EF Core for CRUD
-- Soft delete across all entities
+- Status-based patient lifecycle (Active / Deactivated) — replaces hard delete with reversible deactivation
 - Auto-audit fields via `SaveChangesAsync` override
 - Pagination, search, and filtering on all list endpoints
 - Global exception middleware — consistent JSON error responses
@@ -133,7 +133,7 @@ DELETE /api/User/delete/{id}
 ```
 
 ### Patients
-Full patient lifecycle — registration, search, soft delete. MRN generated via SQL Sequence (race-condition safe). Doctors restricted to updating patients assigned to them via appointments.
+Full patient lifecycle — registration, search, status-based deactivation/reactivation. MRN generated via SQL Sequence (race-condition safe). Doctors are scoped to patients with at least one appointment under their care when listing patients.
 
 Includes real-time baseline metric summary endpoint scoped securely by role.
 
@@ -141,10 +141,16 @@ Includes real-time baseline metric summary endpoint scoped securely by role.
 GET    /api/Patient/list
 GET    /api/Patient/view/{id}
 POST   /api/Patient/register
-PATCH    /api/Patient/update/{id}
-DELETE /api/Patient/delete/{id}
+PATCH  /api/Patient/update/{id}
+PATCH  /api/Patient/status/{id}
 GET    /api/Patient/stats
 ```
+
+**Patient status lifecycle:** Patients are never hard-deleted. Each patient has a `Status` of `Active` or `Deactivated`.
+
+- `GET /api/Patient/list` accepts `Status` (filter to a specific status) and `IncludeAll` (bypass the status filter entirely) query params. **These are only honored for the Admin role** — Doctor and Receptionist requests are always forced to `Active` regardless of what's passed, enforced server-side, not just hidden in the UI.
+- `PATCH /api/Patient/status/{id}` is Admin-only and toggles a patient between `Active` and `Deactivated` — the same endpoint handles both deactivation and reactivation.
+- `GET /api/Patient/view/{id}` returns deactivated patients for Admin only; other roles get a 404 for a deactivated patient's ID.
 
 Note on `/stats`: Role-scoped summary statistics (Admin/Receptionist: facility totals; Doctor: counts for own assigned patients only). No historical trends computed here.
 
@@ -197,7 +203,8 @@ GET    /api/Dashboard/summary
 | Create patient | ✅ | ❌ | ✅ |
 | View patients | ✅ | ✅ | ✅ |
 | Update patient | ✅ | ✅ | ❌ |
-| Delete patient | ✅ | ❌ | ❌ |
+| Deactivate / Reactivate patient | ✅ | ❌ | ❌ |
+| View deactivated patients | ✅ | ❌ | ❌ |
 | Book appointment | ✅ | ❌ | ✅ |
 | View appointments | ✅ | ✅ | ✅ |
 | Reschedule appointment | ✅ | ❌ | ✅ |
@@ -228,7 +235,8 @@ Infrastructure → Application → Domain
 
 - **Result\<T\>** — all service methods return `Result<T>` instead of throwing exceptions for expected failures
 - **IAuditable** — `CreatedAt`, `CreatedBy`, `UpdatedAt`, `UpdatedBy` auto-populated in `SaveChangesAsync`
-- **Soft delete** — `IsDeleted` flag on Patient and User. Records are never hard deleted
+- **Lifecycle status (Patient)** — `Status` enum (`Active`/`Deactivated`) replaces the old boolean delete flag. Reversible, role-gated, never a hard delete.
+- **Soft delete (User)** — `IsDeleted` flag remains in place for Users (unchanged by this update).
 - **SQL Sequence** — MRN generation uses `NEXT VALUE FOR dbo.PatientNumbers` (atomic, no race condition)
 - **Dapper for reporting** — dashboard aggregate queries use Dapper for single-round-trip SQL
 - **EF Core for CRUD** — all create/update/delete operations use EF Core with change tracking
@@ -396,6 +404,8 @@ The development database is automatically populated with a baseline of realistic
 
 ## Planned — Phase 2
 
+- Field-level restrictions on patient updates (Doctor limited to clinical fields only)
+- Per-status role permissions for appointment transitions (e.g. only Doctor can mark Completed)
 - Medical Records / SOAP notes (Doctor writes visit notes)
 - Prescriptions module with drug interaction check
 - Lab Tests module

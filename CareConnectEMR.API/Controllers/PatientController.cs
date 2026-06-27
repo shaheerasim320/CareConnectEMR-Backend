@@ -29,7 +29,8 @@ public class PatientController : ControllerBase
     [HttpGet("view/{id:guid}")]
     public async Task<IActionResult> GetPatientById(Guid id, CancellationToken ct)
     {
-        var result = await _patientService.GetPatientByIdAsync(id, ct);
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        var result = await _patientService.GetPatientByIdAsync(id, role, ct);
         return StatusCode(result.StatusCode, result);
     }
 
@@ -53,11 +54,11 @@ public class PatientController : ControllerBase
         return StatusCode(result.StatusCode, result);
     }
 
-    [HttpDelete("delete/{id:guid}")]
+    [HttpPatch("status/{id:guid}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeletePatient(Guid id, CancellationToken ct)
+    public async Task<IActionResult> UpdatePatientStatus(Guid id, [FromBody] UpdatePatientStatusRequest request, CancellationToken ct)
     {
-        var result = await _patientService.DeletePatientAsync(id, ct);
+        var result = await _patientService.UpdatePatientStatusAsync(id, request.Status, ct);
         return StatusCode(result.StatusCode, result);
     }
 

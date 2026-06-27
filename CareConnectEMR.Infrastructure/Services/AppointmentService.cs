@@ -3,6 +3,7 @@ using CareConnectEMR.Application.DTOs.Appointment;
 using CareConnectEMR.Application.Features.Appointment;
 using CareConnectEMR.Application.Interfaces;
 using CareConnectEMR.Domain.Enitites;
+using CareConnectEMR.Domain.Enums;
 using CareConnectEMR.Infrastructure.Persistence;
 using Dapper;
 using Microsoft.Data.SqlClient;
@@ -112,7 +113,7 @@ namespace CareConnectEMR.Infrastructure.Services
             if (duration > 240) 
                 return Result<AppointmentResponse>.Fail("Appointment cannot exceed 4 hours.");
 
-            var patientExists = await _context.Patients.AnyAsync(p => p.Id == request.PatientId && !p.IsDeleted, ct);
+            var patientExists = await _context.Patients.AnyAsync(p => p.Id == request.PatientId && p.Status == PatientStatus.Active, ct);
             if (!patientExists) 
                 return Result<AppointmentResponse>.NotFound("Patient not found.");
 

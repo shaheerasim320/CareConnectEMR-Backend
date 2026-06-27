@@ -94,9 +94,9 @@ namespace CareConnectEMR.Infrastructure.Services
 
             SELECT
             	--Total Patients this month vs last month
-            	(SELECT COUNT(*) FROM Patients WHERE IsDeleted=0) AS TotalPatients_Count,
+            	(SELECT COUNT(*) FROM Patients WHERE Status = 'Active') AS TotalPatients_Count,
 
-            	(SELECT COUNT(*) FROM Patients WHERE IsDeleted=0 AND CreatedAt<@LastMonthEnd AND CreatedAt>=@LastMonthStart) AS TotalPatients_PreviousMonthCount,
+            	(SELECT COUNT(*) FROM Patients WHERE Status = 'Active' AND CreatedAt<@LastMonthEnd AND CreatedAt>=@LastMonthStart) AS TotalPatients_PreviousMonthCount,
 
             	--Appointments today vs yesterday
             	(SELECT COUNT(*) FROM Appointments WHERE StartTime>=@Today AND StartTime<@Tomorrow ) AS AppointmentsToday_Count,
@@ -165,7 +165,7 @@ namespace CareConnectEMR.Infrastructure.Services
                 Gender,
                 CreatedAt                   AS RegisteredAt
             FROM Patients
-            WHERE IsDeleted = 0
+            WHERE Status = 'Active'
             ORDER BY CreatedAt DESC
             """;
 
@@ -324,12 +324,12 @@ namespace CareConnectEMR.Infrastructure.Services
 
                 -- New patients registered today vs yesterday
                 (SELECT COUNT(*) FROM Patients
-                 WHERE IsDeleted = 0
+                 WHERE Status = 'Active'
                    AND CAST(CreatedAt AS DATE) = @Today)
                     AS NewPatientsToday_Count,
 
                 (SELECT COUNT(*) FROM Patients
-                 WHERE IsDeleted = 0
+                 WHERE Status = 'Active'
                    AND CAST(CreatedAt AS DATE) = @Yesterday)
                     AS NewPatientsToday_PreviousCount
             """;
