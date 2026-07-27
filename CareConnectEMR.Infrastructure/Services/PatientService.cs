@@ -26,15 +26,15 @@ namespace CareConnectEMR.Infrastructure.Services
 
         private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString); 
 
-        public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, string role, string currentUserId, CancellationToken ct = default)
+        public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, string role, string currentUserId, PatientStatus? status, bool includeAll, CancellationToken ct = default)
         {
             if (parameters.Page < 1) parameters.Page = 1;
 
             var query = _context.Patients.AsNoTracking();
 
-            if (role == "Admin")
+            if (role == UserRoles.Admin)
             {
-                query = parameters.IncludeAll ? query : query.Where(p => p.Status == (parameters.Status ?? PatientStatus.Active));
+                query = includeAll ? query : query.Where(p => p.Status == (status ?? PatientStatus.Active));
             }
             else
             {
@@ -42,7 +42,7 @@ namespace CareConnectEMR.Infrastructure.Services
             }
 
 
-            if (role == "Doctor")
+            if (role == UserRoles.Doctor)
                 query = query.Where(p => _context.Appointments.Any(a => a.PatientId == p.Id && a.DoctorId == currentUserId));
 
             if (!string.IsNullOrEmpty(parameters.Search))
@@ -73,11 +73,14 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PagedResult<PatientListResponse>>.Ok(pagedData);
         }
 
-        public async Task<Result<PatientResponse>> GetPatientByIdAsync(Guid id, string role, CancellationToken ct = default)
+        public async Task<Result<PatientResponse>> GetPatientByIdAsync(Guid id, string role, string currentUserId, CancellationToken ct = default)
         {
             var query = _context.Patients.AsNoTracking();
 
-            query = role == "Admin" ? query : query.Where(p => p.Status == PatientStatus.Active);
+            query = role == UserRoles.Admin ? query : query.Where(p => p.Status == PatientStatus.Active);
+
+            if (role == UserRoles.Doctor)
+                query = query.Where(patient => _context.Appointments.Any(appointment => appointment.PatientId == patient.Id && appointment.DoctorId == currentUserId));
 
             var patient = await query.FirstOrDefaultAsync(p => p.Id == id, ct);
 
@@ -120,26 +123,87 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PatientResponse>.Created(PatientMapper.ToResponse(patient));
         }
 
-        public async Task<Result<PatientResponse>> UpdatePatientAsync(Guid id, UpdatePatientRequest request, CancellationToken ct = default)
+        public async Task<Result<PatientResponse>> UpdateContactAsync(Guid id, UpdatePatientContactRequest request, CancellationToken ct = default)
         {
+            if (request.PhoneNumber is not null && string.IsNullOrWhiteSpace(request.PhoneNumber)
+                || request.Email is not null && string.IsNullOrWhiteSpace(request.Email)
+                || request.Address is not null && string.IsNullOrWhiteSpace(request.Address)
+                || request.EmergencyContactName is not null && string.IsNullOrWhiteSpace(request.EmergencyContactName)
+                || request.EmergencyContactNumber is not null && string.IsNullOrWhiteSpace(request.EmergencyContactNumber))
+            {
+                return Result<PatientResponse>.Fail("Contact fields cannot be blank when supplied.");
+            }
+
             var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && p.Status == PatientStatus.Active, ct);
             if (patient == null) return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
-            
+
             bool isChanged = false;
 
-            if (request.FirstName != null && patient.FirstName != request.FirstName ) { patient.FirstName = request.FirstName.Trim(); isChanged = true; }
-            if (request.LastName != null && patient.LastName != request.LastName) { patient.LastName = request.LastName.Trim(); isChanged = true; }
-            if (request.PhoneNumber != null && patient.PhoneNumber != request.PhoneNumber) { patient.PhoneNumber = request.PhoneNumber; isChanged = true; }
-            if (request.DateOfBirth.HasValue && patient.DateOfBirth != request.DateOfBirth.Value) { patient.DateOfBirth = request.DateOfBirth.Value; isChanged = true; }
-            if (request.Gender != null && patient.Gender != request.Gender) { patient.Gender = request.Gender;isChanged = true; }
-            if (request.Email != null && patient.Email != request.Email) { patient.Email = request.Email; isChanged = true; }
-            if (request.Address != null && patient.Address != request.Address) { patient.Address = request.Address; isChanged = true; }
-            if (request.BloodType != null && patient.BloodType != request.BloodType) { patient.BloodType = request.BloodType; isChanged = true; }
-            if (request.Allergies != null && patient.Allergies != request.Allergies) { patient.Allergies = request.Allergies; isChanged = true; }
-            if (request.EmergencyContactName != null && patient.EmergencyContactName != request.EmergencyContactName) { patient.EmergencyContactName = request.EmergencyContactName; isChanged = true; }
-            if (request.EmergencyContactNumber != null && patient.EmergencyContactNumber != request.EmergencyContactNumber) { patient.EmergencyContactNumber = request.EmergencyContactNumber; isChanged = true; }
+            if (request.PhoneNumber != null && patient.PhoneNumber != request.PhoneNumber) { patient.PhoneNumber = request.PhoneNumber.Trim(); isChanged = true; }
+            if (request.Email != null && patient.Email != request.Email) { patient.Email = request.Email.Trim(); isChanged = true; }
+            if (request.Address != null && patient.Address != request.Address) { patient.Address = request.Address.Trim(); isChanged = true; }
+            if (request.EmergencyContactName != null && patient.EmergencyContactName != request.EmergencyContactName) { patient.EmergencyContactName = request.EmergencyContactName.Trim(); isChanged = true; }
+            if (request.EmergencyContactNumber != null && patient.EmergencyContactNumber != request.EmergencyContactNumber) { patient.EmergencyContactNumber = request.EmergencyContactNumber.Trim(); isChanged = true; }
 
-            if(!isChanged) return Result<PatientResponse>.Fail("No fields were updated. Please provide at least one field to update.");
+            if (!isChanged) return Result<PatientResponse>.Fail("No contact fields were updated.");
+
+            await _context.SaveChangesAsync(ct);
+            return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
+        }
+
+        public async Task<Result<PatientResponse>> UpdateIdentityAsync(Guid id, UpdatePatientIdentityRequest request, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.Reason))
+                return Result<PatientResponse>.Fail("A reason is required for an identity change.");
+
+            if (request.FirstName is not null && string.IsNullOrWhiteSpace(request.FirstName)
+                || request.LastName is not null && string.IsNullOrWhiteSpace(request.LastName)
+                || request.Gender is not null && string.IsNullOrWhiteSpace(request.Gender))
+            {
+                return Result<PatientResponse>.Fail("Identity fields cannot be blank when supplied.");
+            }
+
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && p.Status == PatientStatus.Active, ct);
+            if (patient == null) return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
+
+            var changedFields = new List<string>();
+
+            if (request.FirstName != null && patient.FirstName != request.FirstName) { patient.FirstName = request.FirstName.Trim(); changedFields.Add(nameof(request.FirstName)); }
+            if (request.LastName != null && patient.LastName != request.LastName) { patient.LastName = request.LastName.Trim(); changedFields.Add(nameof(request.LastName)); }
+            if (request.DateOfBirth.HasValue && patient.DateOfBirth != request.DateOfBirth.Value) { patient.DateOfBirth = request.DateOfBirth.Value; changedFields.Add(nameof(request.DateOfBirth)); }
+            if (request.Gender != null && patient.Gender != request.Gender) { patient.Gender = request.Gender.Trim(); changedFields.Add(nameof(request.Gender)); }
+
+            if (changedFields.Count == 0) return Result<PatientResponse>.Fail("No identity fields were updated.");
+
+            _context.SetAuditReason(request.Reason.Trim());
+            try
+            {
+                await _context.SaveChangesAsync(ct);
+            }
+            finally
+            {
+                _context.ClearAuditReason();
+            }
+            return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
+        }
+
+        public async Task<Result<PatientResponse>> UpdateClinicalAsync(Guid id, UpdatePatientClinicalRequest request, CancellationToken ct = default)
+        {
+            if (request.BloodType is not null && string.IsNullOrWhiteSpace(request.BloodType)
+                || request.Allergies is not null && string.IsNullOrWhiteSpace(request.Allergies))
+            {
+                return Result<PatientResponse>.Fail("Clinical fields cannot be blank when supplied.");
+            }
+
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.Id == id && p.Status == PatientStatus.Active, ct);
+            if (patient == null) return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
+
+            bool isChanged = false;
+
+            if (request.BloodType != null && patient.BloodType != request.BloodType) { patient.BloodType = request.BloodType.Trim(); isChanged = true; }
+            if (request.Allergies != null && patient.Allergies != request.Allergies) { patient.Allergies = request.Allergies.Trim(); isChanged = true; }
+
+            if (!isChanged) return Result<PatientResponse>.Fail("No clinical fields were updated.");
 
             await _context.SaveChangesAsync(ct);
             return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
@@ -151,7 +215,7 @@ namespace CareConnectEMR.Infrastructure.Services
             var today = DateTime.UtcNow.Date;
             var tomorrow = today.AddDays(1);
 
-            if (role == "Doctor")
+            if (role == UserRoles.Doctor)
             {
                 const string sql = @"
                         SELECT COUNT(DISTINCT a.PatientId) FROM Appointments a 

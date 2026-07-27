@@ -97,6 +97,13 @@ namespace CareConnectEMR.Infrastructure.Services
 
             var user = token.User;
 
+            if (!user.IsActive)
+            {
+                token.Revoked = true;
+                await _context.SaveChangesAsync(ct);
+                return Result<AuthResponse>.Unauthorized("Account is inactive.");
+            }
+
             var roles = await _userManager.GetRolesAsync(user);
 
             var newAccessToken = _tokenService.GenerateAccessToken(user, roles);

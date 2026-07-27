@@ -11,7 +11,5 @@ namespace CareConnectEMR.Application.DTOs.Appointment
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
         public string? Reason { get; set; }
-        public string? Notes { get; set; }
-
     }
 }

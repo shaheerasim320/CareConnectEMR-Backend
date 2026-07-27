@@ -14,7 +14,7 @@ namespace CareConnectEMR.Application.Features.Appointment
             Id = a.Id,
             PatientId = a.PatientId,
             PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
-            PatientMRN = a.Patient.MRN,
+            PatientMRN = a.Patient.MRN ?? string.Empty,
             DoctorId = a.DoctorId,
             DoctorName = a.Doctor.FirstName + " " + a.Doctor.LastName,
             StartTime = a.StartTime,

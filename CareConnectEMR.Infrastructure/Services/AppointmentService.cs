@@ -23,13 +23,16 @@ namespace CareConnectEMR.Infrastructure.Services
 
         private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString);
 
-        public async Task<Result<PagedResult<AppointmentListResponse>>> GetAppointmentsAsync(AppointmentQueryParameters parameters, CancellationToken ct)
+        public async Task<Result<PagedResult<AppointmentListResponse>>> GetAppointmentsAsync(AppointmentQueryParameters parameters, string role, string currentUserId, CancellationToken ct)
         {
             if (parameters.Page < 1) parameters.Page = 1;
 
             var query = _context.Appointments
                 .AsNoTracking()
                 .AsQueryable();
+
+            if (role == UserRoles.Doctor)
+                query = query.Where(a => a.DoctorId == currentUserId);
 
             if (!string.IsNullOrEmpty(parameters.DoctorId))
                 query = query.Where(a => a.DoctorId == parameters.DoctorId);
@@ -84,8 +87,7 @@ namespace CareConnectEMR.Infrastructure.Services
                 });
         }
 
-        public async Task<Result<AppointmentResponse>> GetAppointmentByIdAsync(
-            Guid id, CancellationToken ct)
+        public async Task<Result<AppointmentResponse>> GetAppointmentByIdAsync(Guid id, string role, string currentUserId, CancellationToken ct)
         {
             var appointment = await _context.Appointments
                 .AsNoTracking()
@@ -94,6 +96,9 @@ namespace CareConnectEMR.Infrastructure.Services
                 .FirstOrDefaultAsync(a => a.Id == id, ct);
 
             if (appointment is null)
+                return Result<AppointmentResponse>.NotFound("Appointment not found.");
+
+            if (role == UserRoles.Doctor && appointment.DoctorId != currentUserId)
                 return Result<AppointmentResponse>.NotFound("Appointment not found.");
 
             return Result<AppointmentResponse>.Ok(AppointmentMapper.ToResponse(appointment));
@@ -117,7 +122,9 @@ namespace CareConnectEMR.Infrastructure.Services
             if (!patientExists) 
                 return Result<AppointmentResponse>.NotFound("Patient not found.");
 
-            var doctorExists = await _context.Users.AnyAsync(u => u.Id == request.DoctorId, ct);
+            var doctorExists = await _context.Users.AnyAsync(u => u.Id == request.DoctorId && u.IsActive, ct)
+                && await _context.UserRoles.AnyAsync(userRole => userRole.UserId == request.DoctorId
+                    && _context.Roles.Any(role => role.Id == userRole.RoleId && role.Name == UserRoles.Doctor), ct);
             if (!doctorExists) 
                 return Result<AppointmentResponse>.NotFound("Doctor not found.");
 
@@ -193,12 +200,6 @@ namespace CareConnectEMR.Infrastructure.Services
                 isChanged = true;
             }
 
-            if (request.Notes != null && appointment.Notes != request.Notes)
-            {
-                appointment.Notes = request.Notes.Trim();
-                isChanged = true;
-            }
-
             if (!isChanged)
                 return Result<AppointmentResponse>.Fail("No fields updated. Provide at least one changed field.");
 
@@ -206,7 +207,17 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<AppointmentResponse>.Ok(AppointmentMapper.ToResponse(appointment));
         }
 
-        public async Task<Result<AppointmentResponse>> UpdateStatusAsync(Guid id, UpdateStatusRequest request, CancellationToken ct)
+        public async Task<Result<AppointmentResponse>> UpdateClinicalNotesAsync(Guid id, UpdateAppointmentNotesRequest request, string currentUserId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request.Notes)) return Result<AppointmentResponse>.Fail("Notes cannot be blank.");
+            var appointment = await _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).FirstOrDefaultAsync(a => a.Id == id, ct);
+            if (appointment is null || appointment.DoctorId != currentUserId) return Result<AppointmentResponse>.NotFound("Appointment not found.");
+            appointment.Notes = request.Notes.Trim();
+            await _context.SaveChangesAsync(ct);
+            return Result<AppointmentResponse>.Ok(AppointmentMapper.ToResponse(appointment));
+        }
+
+        public async Task<Result<AppointmentResponse>> UpdateStatusAsync(Guid id, UpdateStatusRequest request, string role, string currentUserId, CancellationToken ct)
         {
             var appointment = await _context.Appointments
                 .Include(a => a.Patient)
@@ -216,11 +227,30 @@ namespace CareConnectEMR.Infrastructure.Services
             if (appointment is null)
                 return Result<AppointmentResponse>.NotFound("Appointment not found.");
 
+            if (role == UserRoles.Doctor && appointment.DoctorId != currentUserId)
+                return Result<AppointmentResponse>.NotFound("Appointment not found.");
+
             if (!AppointmentStatus.All.Contains(request.Status))
                 return Result<AppointmentResponse>.Fail($"Invalid status '{request.Status}'. " + $"Valid values: {string.Join(", ", AppointmentStatus.All)}");
 
             if (!AppointmentStatus.CanTransitionTo(appointment.Status, request.Status))
                 return Result<AppointmentResponse>.Fail($"Cannot transition from '{appointment.Status}' to '{request.Status}'.");
+
+            var receptionistTransition = (appointment.Status, request.Status) switch
+            {
+                (AppointmentStatus.Scheduled, AppointmentStatus.Confirmed) => true,
+                (AppointmentStatus.Scheduled, AppointmentStatus.Cancelled) => true,
+                (AppointmentStatus.Confirmed, AppointmentStatus.CheckedIn) => true,
+                (AppointmentStatus.Confirmed, AppointmentStatus.Cancelled) => true,
+                (AppointmentStatus.Confirmed, AppointmentStatus.NoShow) => true,
+                _ => false
+            };
+
+            if (role == UserRoles.Doctor && !(appointment.Status == AppointmentStatus.CheckedIn && request.Status == AppointmentStatus.Completed))
+                return Result<AppointmentResponse>.Forbidden("Doctors may only complete their checked-in appointments.");
+
+            if (role == UserRoles.Receptionist && !receptionistTransition)
+                return Result<AppointmentResponse>.Forbidden("Receptionists may only manage scheduling and check-in transitions.");
 
             if (request.Status == AppointmentStatus.Cancelled)
             {
@@ -273,7 +303,7 @@ namespace CareConnectEMR.Infrastructure.Services
             var today = DateTime.UtcNow.Date;
             var tomorrow = today.AddDays(1);
 
-            if (role == "Doctor")
+            if (role == UserRoles.Doctor)
             {
                 const string sql = @"
                         SELECT COUNT(*) FROM Appointments a WHERE a.StartTime>=@Today AND a.StartTime<@Tomorrow AND a.DoctorId=@DoctorId

@@ -11,7 +11,7 @@ namespace CareConnectEMR.Application.DTOs.Dashboard
     {
         public StatCard MyAppointmentsToday { get; set; } = new();
         public StatCard MyCompletedToday { get; set; } = new();
-        public StatCard TotalPatientsSeen { get; set; }
+        public StatCard TotalPatientsSeen { get; set; } = new();
 
         public NextAppointmentDto? NextAppointment { get; set; }
         public List<TodayScheduleItem> TodaySchedule { get; set; } = [];

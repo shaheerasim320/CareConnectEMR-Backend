@@ -20,7 +20,5 @@ namespace CareConnectEMR.Application.DTOs.Patient
             set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
         }
         public string? Search { get; set; }
-        public PatientStatus? Status { get; set; } = PatientStatus.Active;
-        public bool IncludeAll { get; set; } = false;
     }
 }

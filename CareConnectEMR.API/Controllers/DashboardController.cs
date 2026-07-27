@@ -1,4 +1,5 @@
 ﻿using CareConnectEMR.Application.Interfaces;
+using CareConnectEMR.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
@@ -21,19 +22,19 @@ namespace CareConnectEMR.API.Controllers
             var role = User.FindFirstValue(ClaimTypes.Role)!;
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-            if (role == "Admin")
+            if (role == UserRoles.Admin)
             {
                 var result = await _dashboardService.GetAdminDashboardAsync(ct);
                 return StatusCode(result.StatusCode, result);
             }
 
-            if (role == "Doctor")
+            if (role == UserRoles.Doctor)
             {
                 var result = await _dashboardService.GetDoctorDashboardAsync(userId, ct);
                 return StatusCode(result.StatusCode, result);
             }
 
-            if (role == "Receptionist")
+            if (role == UserRoles.Receptionist)
             {
                 var result = await _dashboardService.GetReceptionistDashboardAsync(ct);
                 return StatusCode(result.StatusCode, result);

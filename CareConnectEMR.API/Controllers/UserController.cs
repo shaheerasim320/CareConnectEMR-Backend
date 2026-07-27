@@ -1,5 +1,6 @@
 ﻿using CareConnectEMR.Application.DTOs.User;
 using CareConnectEMR.Application.Interfaces;
+using CareConnectEMR.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,7 +8,7 @@ namespace CareConnectEMR.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = UserRoles.Admin)]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;

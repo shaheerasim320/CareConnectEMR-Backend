@@ -10,12 +10,14 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json;
 
 namespace CareConnectEMR.Infrastructure.Persistence
 {
     public class AppDbContext:IdentityDbContext<ApplicationUser>
     {   
         private readonly IHttpContextAccessor? _httpContextAccessor;
+        private string? _auditReason;
         public AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor? httpContextAccessor = null) : base(options) { 
             _httpContextAccessor = httpContextAccessor;
         }
@@ -25,6 +27,11 @@ namespace CareConnectEMR.Infrastructure.Persistence
         public DbSet<Appointment> Appointments { get; set; }
 
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+        public DbSet<AuditLog> AuditLogs { get; set; }
+
+        public void SetAuditReason(string reason) => _auditReason = reason;
+        public void ClearAuditReason() => _auditReason = null;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -202,27 +209,75 @@ namespace CareConnectEMR.Infrastructure.Persistence
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
             });
+
+            builder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(log => log.Id);
+                entity.Property(log => log.EntityName).IsRequired().HasMaxLength(128);
+                entity.Property(log => log.EntityId).IsRequired().HasMaxLength(128);
+                entity.Property(log => log.Action).IsRequired().HasMaxLength(32);
+                entity.Property(log => log.ChangedProperties).IsRequired().HasMaxLength(2000);
+                entity.Property(log => log.Reason).HasMaxLength(500);
+                entity.Property(log => log.UserId).HasMaxLength(450);
+                entity.Property(log => log.RequestPath).HasMaxLength(500);
+                entity.Property(log => log.IpAddress).HasMaxLength(100);
+                entity.HasIndex(log => new { log.EntityName, log.EntityId, log.OccurredAt })
+                    .HasDatabaseName("IDX_AuditLog_Entity_OccurredAt");
+            });
         }
 
         public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "SYSTEM";
-            var entries = ChangeTracker.Entries<IAuditable>();
-            foreach (var entry in entries)
+            var httpContext = _httpContextAccessor?.HttpContext;
+            var userId = httpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? "SYSTEM";
+            var now = DateTime.UtcNow;
+            var entries = ChangeTracker.Entries().Where(entry => entry.Entity is not AuditLog && entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToList();
+
+            foreach (var entry in entries.Where(entry => entry.Entity is IAuditable))
             {
+                var auditable = (IAuditable)entry.Entity;
                 if (entry.State == EntityState.Added)
                 {
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
-                    entry.Entity.CreatedBy = userId;  
+                    auditable.CreatedAt = now;
+                    auditable.CreatedBy = userId;
                 }
                 else if (entry.State == EntityState.Modified)
                 {
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
-                    entry.Entity.UpdatedBy = userId;
-                    entry.Property(x => x.CreatedAt).IsModified = false;
-                    entry.Property(x => x.CreatedBy).IsModified = false;
+                    auditable.UpdatedAt = now;
+                    auditable.UpdatedBy = userId;
+                    entry.Property(nameof(IAuditable.CreatedAt)).IsModified = false;
+                    entry.Property(nameof(IAuditable.CreatedBy)).IsModified = false;
                 }
             }
+
+            var excludedProperties = new HashSet<string> { "PasswordHash", "SecurityStamp", "ConcurrencyStamp", "TokenHash" };
+            var auditLogs = new List<AuditLog>();
+            foreach (var entry in entries)
+            {
+                var changed = entry.Properties.Where(property => !excludedProperties.Contains(property.Metadata.Name) && (entry.State != EntityState.Modified || property.IsModified)).ToList();
+                if (changed.Count == 0) continue;
+
+                var key = entry.Metadata.FindPrimaryKey();
+                var entityId = key is null ? string.Empty : string.Join("|", key.Properties.Select(property => entry.Property(property.Name).CurrentValue ?? entry.Property(property.Name).OriginalValue));
+                var oldValues = entry.State == EntityState.Added ? null : changed.ToDictionary(property => property.Metadata.Name, property => property.OriginalValue);
+                var newValues = entry.State == EntityState.Deleted ? null : changed.ToDictionary(property => property.Metadata.Name, property => property.CurrentValue);
+
+                auditLogs.Add(new AuditLog
+                {
+                    EntityName = entry.Metadata.ClrType.Name,
+                    EntityId = entityId,
+                    Action = entry.State.ToString(),
+                    ChangedProperties = string.Join(",", changed.Select(property => property.Metadata.Name)),
+                    OldValues = oldValues is null ? null : JsonSerializer.Serialize(oldValues),
+                    NewValues = newValues is null ? null : JsonSerializer.Serialize(newValues),
+                    Reason = _auditReason,
+                    UserId = userId,
+                    OccurredAt = now,
+                    RequestPath = httpContext?.Request.Path,
+                    IpAddress = httpContext?.Connection.RemoteIpAddress?.MapToIPv4().ToString()
+                });
+            }
+            AuditLogs.AddRange(auditLogs);
             return base.SaveChangesAsync(cancellationToken);
         }
     }

@@ -12,7 +12,7 @@ namespace CareConnectEMR.Application.Features.Patient
         public static PatientResponse ToResponse(CareConnectEMR.Domain.Enitites.Patient p) => new()
         {
             Id = p.Id,
-            MRN = p.MRN,
+            MRN = p.MRN ?? string.Empty,
             FirstName = p.FirstName,
             LastName = p.LastName,
             Age = p.Age,
@@ -30,7 +30,7 @@ namespace CareConnectEMR.Application.Features.Patient
         public static PatientListResponse ToListItem(CareConnectEMR.Domain.Enitites.Patient p) => new()
         {
             Id = p.Id,
-            MRN = p.MRN,
+            MRN = p.MRN ?? string.Empty,
             FullName = p.FullName,
             Age = p.Age,
             Gender = p.Gender,
