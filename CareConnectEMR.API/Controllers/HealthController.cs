@@ -13,7 +13,7 @@ namespace CareConnectEMR.API.Controllers
             {
                 status = "Healthy",
                 service = "CareConnect EMR API",
-                version = "1.0.0",
+                version = "2.0.0",
                 timestamp = DateTime.UtcNow
             });
         }
