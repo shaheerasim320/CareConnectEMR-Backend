@@ -234,34 +234,36 @@ namespace CareConnectEMR.Infrastructure.Services
             var nextSql = """
             SELECT TOP 1
                 a.Id,
-                p.FirstName + ' ' + p.LastName  AS PatientName,
-                p.MRN                            AS PatientMRN,
+                a.PatientId,
+                p.FirstName + ' ' + p.LastName AS PatientName,
+                p.MRN AS PatientMRN,
                 a.StartTime,
                 a.EndTime,
                 a.Status,
                 a.Reason
             FROM Appointments a
             INNER JOIN Patients p ON a.PatientId = p.Id
-            WHERE a.DoctorId  = @DoctorId
-              AND a.StartTime >= GETUTCDATE()
-              AND a.Status    IN ('Scheduled','Confirmed','CheckedIn')
+            WHERE a.DoctorId = @DoctorId
+            AND a.StartTime >= GETUTCDATE()
+            AND a.Status IN ('Scheduled', 'Confirmed', 'CheckedIn')
             ORDER BY a.StartTime ASC
             """;
 
             var scheduleSql = """
             SELECT
                 a.Id,
-                p.FirstName + ' ' + p.LastName  AS PatientName,
-                p.MRN                            AS PatientMRN,
+                a.PatientId,
+                p.FirstName + ' ' + p.LastName AS PatientName,
+                p.MRN AS PatientMRN,
                 a.StartTime,
                 a.EndTime,
                 a.Status,
                 a.Reason
             FROM Appointments a
             INNER JOIN Patients p ON a.PatientId = p.Id
-            WHERE a.DoctorId  = @DoctorId
-              AND a.StartTime >= @Today
-              AND a.StartTime <  @Tomorrow
+            WHERE a.DoctorId = @DoctorId
+            AND a.StartTime >= @Today
+            AND a.StartTime < @Tomorrow
             ORDER BY a.StartTime ASC
             """;
 

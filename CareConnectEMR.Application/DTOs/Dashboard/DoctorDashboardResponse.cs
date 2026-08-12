@@ -21,6 +21,7 @@ namespace CareConnectEMR.Application.DTOs.Dashboard
     public class NextAppointmentDto
     {
         public Guid Id { get; set; }
+        public Guid PatientId { get; set; }
         public string PatientName { get; set; } = string.Empty;
         public string PatientMRN { get; set; } = string.Empty;
         public DateTime StartTime { get; set; }
@@ -32,6 +33,7 @@ namespace CareConnectEMR.Application.DTOs.Dashboard
     public class TodayScheduleItem
     {
         public Guid Id { get; set; }
+        public Guid PatientId { get; set; }
         public string PatientName { get; set; } = string.Empty;
         public string PatientMRN { get; set; } = string.Empty;
         public DateTime StartTime { get; set; }
