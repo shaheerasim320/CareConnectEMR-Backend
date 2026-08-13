@@ -342,18 +342,19 @@ namespace CareConnectEMR.Infrastructure.Services
 
             SELECT
                 a.Id,
-                p.FirstName + ' ' + p.LastName      AS PatientName,
-                p.MRN                                AS PatientMRN,
-                u.FirstName + ' ' + u.LastName       AS DoctorName,
+                a.PatientId,
+                p.FirstName + ' ' + p.LastName AS PatientName,
+                p.MRN AS PatientMRN,
+                u.FirstName + ' ' + u.LastName AS DoctorName,
                 a.StartTime,
                 a.EndTime,
                 a.Status,
                 a.Reason
             FROM Appointments a
             INNER JOIN Patients p ON a.PatientId = p.Id
-            INNER JOIN AspNetUsers u ON a.DoctorId  = u.Id
+            INNER JOIN AspNetUsers u ON a.DoctorId = u.Id
             WHERE a.StartTime >= @Today
-              AND a.StartTime <  @Tomorrow
+            AND a.StartTime < @Tomorrow
             ORDER BY a.StartTime ASC
             """;
 

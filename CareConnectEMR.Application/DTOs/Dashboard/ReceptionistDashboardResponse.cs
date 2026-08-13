@@ -19,6 +19,7 @@ namespace CareConnectEMR.Application.DTOs.Dashboard
     public class AppointmentQueueItem
     {
         public Guid Id { get; set; }
+        public Guid PatientId { get; set; }
         public string PatientName { get; set; } = string.Empty;
         public string PatientMRN { get; set; } = string.Empty;
         public string DoctorName { get; set; } = string.Empty;
