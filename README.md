@@ -34,6 +34,8 @@ Role-based ASP.NET Core API for a staff-facing EMR workflow. It manages secure s
 | --- | :---: | :---: | :---: |
 | Role-specific dashboard | ✓ | ✓ | ✓ |
 | View patients | ✓ | ✓ | ✓ |
+| View patient Detail | ✓ | ✓ | ✓ |
+| View patient audit logs | ✓ | — | — |
 | Register patients | ✓ | — | ✓ |
 | Update contact/registration details | ✓ | — | ✓ |
 | Correct identity (name, DOB, gender) with reason/audit | ✓ | — | ✓ |
@@ -57,7 +59,7 @@ Patient list visibility is enforced on the server:
 | Health | `GET /health` |
 | Auth | `POST /api/Auth/login`, `refresh-token`, `logout` |
 | Dashboard | `GET /api/Dashboard/summary` |
-| Patients | `GET /api/Patient/list`, `view/{id}`, `stats`; `POST /register`; `PATCH /contact/{id}`, `identity/{id}`, `clinical/{id}`, `status/{id}` |
+| Patients | `GET /api/Patient/list`, `view/{id}`, `logs/{id}`, `stats`; `POST /register`; `PATCH /contact/{id}`, `identity/{id}`, `clinical/{id}`, `status/{id}` |
 | Appointments | `GET /api/Appointment/list`, `view/{id}`, `stats`; `POST /register`; `PUT /update/{id}`; `PATCH /clinical-notes/{id}`, `status/{id}`; `DELETE /cancel/{id}` |
 | Users | `POST /api/User/register`; `GET /list`, `view/{id}`; `PATCH /update/{id}`; `POST /reset-password/{id}`; `DELETE /delete/{id}` |
 
@@ -82,6 +84,7 @@ Dependencies point inward: `API → Application → Domain`; `Infrastructure →
 - Appointment assignment verifies that the selected staff user is active and has the Doctor role.
 - Refreshing a session for a deactivated user revokes that refresh token and denies the request.
 - Audit logs deliberately exclude password hashes, security stamps, concurrency stamps, and refresh-token hashes. Audit-log access is not exposed through the API.
+- Patient audit log access is restricted to Admin; the endpoint returns the full change history including actor, timestamp, changed fields, and before/after values.
 
 ## Run locally
 

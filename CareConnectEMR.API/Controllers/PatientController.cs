@@ -26,7 +26,7 @@ public class PatientController : ControllerBase
         PatientStatus? status = null;
         bool includeAll = false;
 
-        if(role == UserRoles.Admin)
+        if (role == UserRoles.Admin)
         {
             if (Enum.TryParse<PatientStatus>(Request.Query["Status"], out var parsedStatus))
             {
@@ -48,6 +48,14 @@ public class PatientController : ControllerBase
         var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var result = await _patientService.GetPatientByIdAsync(id, role, userId, ct);
+        return StatusCode(result.StatusCode, result);
+    }
+
+    [HttpGet("logs/{id:guid}")]
+    [Authorize(Roles = UserRoles.Admin)]
+    public async Task<IActionResult> GetPatientAuditLogs(Guid id, CancellationToken ct)
+    {
+        var result = await _patientService.GetPatientAuditLogsAsync(id, ct);
         return StatusCode(result.StatusCode, result);
     }
 

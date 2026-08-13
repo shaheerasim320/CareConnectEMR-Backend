@@ -24,6 +24,7 @@ namespace CareConnectEMR.Application.Features.Patient
             EmergencyContactName = p.EmergencyContactName,
             EmergencyContactNumber = p.EmergencyContactNumber,
             CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
             Status = p.Status
         };
 

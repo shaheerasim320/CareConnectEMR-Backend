@@ -24,7 +24,7 @@ namespace CareConnectEMR.Infrastructure.Services
             _context = context;
         }
 
-        private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString); 
+        private SqlConnection CreateConnection() => new(_context.Database.GetDbConnection().ConnectionString);
 
         public async Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters parameters, string role, string currentUserId, PatientStatus? status, bool includeAll, CancellationToken ct = default)
         {
@@ -88,6 +88,35 @@ namespace CareConnectEMR.Infrastructure.Services
                 return Result<PatientResponse>.NotFound($"Patient with ID {id} not found.");
 
             return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
+        }
+
+        public async Task<Result<List<PatientAuditLogResponse>>> GetPatientAuditLogsAsync(Guid id, CancellationToken ct = default)
+        {
+            var patientExists = await _context.Patients
+                .AsNoTracking()
+                .AnyAsync(p => p.Id == id, ct);
+
+            if (!patientExists)
+                return Result<List<PatientAuditLogResponse>>.NotFound($"Patient with ID {id} not found.");
+
+            var logs = await (
+                from log in _context.AuditLogs
+                join user in _context.Users on log.UserId equals user.Id into userGroup
+                from user in userGroup.DefaultIfEmpty()
+                where log.EntityName == "Patient" && log.EntityId == id.ToString()
+                orderby log.OccurredAt descending
+                select new PatientAuditLogResponse
+                {
+                    Action = log.Action,
+                    ChangedProperties = log.ChangedProperties,
+                    OldValues = log.OldValues,
+                    NewValues = log.NewValues,
+                    PerformedBy = user != null ? user.FirstName + " " + user.LastName : "System",
+                    OccurredAt = log.OccurredAt
+                }
+            ).ToListAsync(ct);
+
+            return Result<List<PatientAuditLogResponse>>.Ok(logs);
         }
 
         public async Task<Result<PatientResponse>> CreatePatientAsync(CreatePatientRequest request, CancellationToken ct = default)
@@ -209,7 +238,7 @@ namespace CareConnectEMR.Infrastructure.Services
             return Result<PatientResponse>.Ok(PatientMapper.ToResponse(patient));
         }
 
-        public async Task<Result<PatientStatResponse>> GetPatientStatsAsync(string role, string currentUserId, CancellationToken ct=default)
+        public async Task<Result<PatientStatResponse>> GetPatientStatsAsync(string role, string currentUserId, CancellationToken ct = default)
         {
             using var connection = CreateConnection();
             var today = DateTime.UtcNow.Date;

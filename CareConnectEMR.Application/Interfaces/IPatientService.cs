@@ -13,6 +13,7 @@ namespace CareConnectEMR.Application.Interfaces
     {
         Task<Result<PatientResponse>> CreatePatientAsync(CreatePatientRequest request, CancellationToken ct);
         Task<Result<PatientResponse>> GetPatientByIdAsync(Guid patientId, string role, string currentUserId, CancellationToken ct);
+        Task<Result<List<PatientAuditLogResponse>>> GetPatientAuditLogsAsync(Guid id, CancellationToken ct);
         Task<Result<PagedResult<PatientListResponse>>> GetPatientsAsync(PatientQueryParameters paramters, string role, string currentUserId, PatientStatus? status, bool includeAll, CancellationToken ct);
         Task<Result<PatientResponse>> UpdateContactAsync(Guid patientId, UpdatePatientContactRequest request, CancellationToken ct);
         Task<Result<PatientResponse>> UpdateIdentityAsync(Guid patientId, UpdatePatientIdentityRequest request, CancellationToken ct);
